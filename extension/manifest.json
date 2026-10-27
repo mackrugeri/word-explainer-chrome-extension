@@ -1,13 +1,12 @@
 {
   "manifest_version": 3,
   "name": "Word Explainer",
-  "version": "0.1.0",
-  "description": "Pronounce selected text or open a ChatGPT explanation prompt.",
+  "version": "0.1.5",
+  "description": "Pronounce selected text or request a short explanation through ChatGPT in an inactive tab.",
   "permissions": [
-    "contextMenus",
-    "activeTab",
-    "scripting",
-    "storage"
+    "storage",
+    "alarms",
+    "offscreen"
   ],
   "background": {
     "service_worker": "background.js"
@@ -23,8 +22,34 @@
       ],
       "js": [
         "content.js"
+      ],
+      "exclude_matches": [
+        "https://chatgpt.com/*"
       ]
+    },
+    {
+      "matches": [
+        "https://chatgpt.com/*"
+      ],
+      "js": [
+        "chatgpt-worker.js"
+      ],
+      "run_at": "document_idle"
     }
   ],
-  "options_page": "options.html"
+  "options_page": "options.html",
+  "commands": {
+    "show-selection-menu": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+Y",
+        "mac": "Command+Shift+Y"
+      },
+      "description": "Show actions for selected text"
+    }
+  },
+  "host_permissions": [
+    "https://translate.googleapis.com/*",
+    "https://translate.google.com/*"
+  ],
+  "minimum_chrome_version": "116"
 }
