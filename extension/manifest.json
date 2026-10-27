@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "Word Explainer",
+  "version": "0.1.0",
+  "description": "Pronounce selected text or open a ChatGPT explanation prompt.",
+  "permissions": [
+    "contextMenus",
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": [
+        "content.js"
+      ]
+    }
+  ],
+  "options_page": "options.html"
+}

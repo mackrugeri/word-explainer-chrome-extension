@@ -1,0 +1,1 @@
+"""Word Explainer backend."""

@@ -1,0 +1,5 @@
+body { margin:40px auto;padding:0 24px;max-width:600px;font:16px/1.5 system-ui;color:#18243b; }
+label { display:block;margin:20px 0; }
+select,input[type=number] { display:block;padding:8px;margin-top:6px;width:100%;box-sizing:border-box; }
+button { background:#2456cf;color:white;border:0;border-radius:6px;padding:12px 20px;cursor:pointer; }
+.check input { margin-right:8px; }
