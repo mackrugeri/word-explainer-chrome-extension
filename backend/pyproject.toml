@@ -1,6 +1,0 @@
-[project]
-name = "word-explainer-backend"
-version = "0.1.0"
-description = "Optional Python backend scaffold for the Word Explainer Chrome extension"
-requires-python = ">=3.10"
-dependencies = []
