@@ -1,20 +1,23 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><title>Word Explainer settings</title><link rel="stylesheet" href="options.css"></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Word Explainer settings</title><link rel="stylesheet" href="options.css"></head>
 <body>
 <main>
-<h1>Word Explainer settings</h1>
+<header class="page-header"><span class="mark" aria-hidden="true">W</span><div><p class="eyebrow">Word Explainer</p><h1>Make it yours.</h1><p class="intro">A few preferences for a more comfortable read.</p></div></header>
 <form id="settings">
-<label>Pronunciation language<select id="language"><option value="en-US">English (US)</option><option value="en-GB">English (UK)</option><option value="ur-PK">Urdu</option><option value="es-ES">Spanish</option><option value="fr-FR">French</option></select></label>
-<label>Speaking speed<input id="rate" type="number" min="0.5" max="2" step="0.1" required></label>
+<fieldset><legend>Translation</legend><p class="section-description">Choose your language and a text size that feels right.</p><div class="field-grid">
 <label>Translate into<select id="translationLanguage"><option value="Urdu">Urdu</option><option value="English">English</option><option value="Arabic">Arabic</option><option value="French">French</option><option value="Spanish">Spanish</option></select></label>
-<label>Translation text size (pixels)<input id="translationFontSize" type="number" min="14" max="32" step="1" required></label>
-<label>Explanation detail<select id="detail"><option value="short">Short</option><option value="detailed">Detailed</option></select></label>
-<p>Select text, then press Command+Shift+Y on Mac or Ctrl+Shift+Y on Windows/Linux to show actions. Customize the shortcut at chrome://extensions/shortcuts.</p>
-<button type="submit">Save settings</button>
-<p id="status" role="status"></p>
+<label>Translation text size<span class="input-unit"><input id="translationFontSize" type="number" min="14" max="32" step="1" required aria-describedby="size-help"><span aria-hidden="true">px</span></span><small id="size-help">Between 14 and 32 pixels.</small></label>
+</div></fieldset>
+<fieldset><legend>Listening</legend><p class="section-description">Set the voice language for selected text and your preferred speed.</p><div class="field-grid">
+<label>Pronunciation language<select id="language"><option value="en-US">English (US)</option><option value="en-GB">English (UK)</option><option value="ur-PK">Urdu</option><option value="es-ES">Spanish</option><option value="fr-FR">French</option></select></label>
+<label>Speaking speed<span class="input-unit"><input id="rate" type="number" min="0.5" max="2" step="0.1" required aria-describedby="rate-help"><span aria-hidden="true">×</span></span><small id="rate-help">1× is normal speed.</small></label>
+</div><p class="field-note">The speaker beside a translation reads it in the translation language.</p></fieldset>
+<fieldset><legend>Explanations</legend><label>Explanation detail<select id="detail" aria-describedby="detail-help"><option value="short">Short</option><option value="detailed">Detailed</option></select></label><small id="detail-help">Current ChatGPT replies are kept short regardless of this preference.</small></fieldset>
+<div class="save-row"><button type="submit">Save settings</button><p id="status" role="status" aria-live="polite"></p></div>
 </form>
-<p>Translation uses Google Translate directly. Explanations use ChatGPT in an inactive tab and return to the selection panel. Sign in to ChatGPT beforehand if required. Website changes or verification may interrupt automation. Voice availability depends on your device.</p>
+<aside class="shortcut-guide"><h2>One shortcut. A little more clarity.</h2><p>Select text on a web page, then open the panel:</p><div class="shortcut-row"><span>Mac <kbd>⌘</kbd> <kbd>⇧</kbd> <kbd>Y</kbd></span><span>Windows / Linux <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>Y</kbd></span></div><p class="field-note">Change your shortcut at <code>chrome://extensions/shortcuts</code>.</p></aside>
+<footer>Google Translate for translations. ChatGPT for explanations.</footer>
 </main>
 <script src="options.js"></script>
 </body></html>

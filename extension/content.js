@@ -7,44 +7,72 @@
     <style>
       :host { all:initial; }
       * { box-sizing:border-box; }
-      .card { width:min(360px,calc(100vw - 24px));background:#fff;color:#172b37;
-        border:1px solid #dce6e5;border-radius:18px;box-shadow:0 16px 48px #142e3326,0 2px 8px #142e3310;
-        font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;overflow:hidden; }
-      .header { display:flex;align-items:center;gap:8px;padding:14px 16px 8px; }
-      .mark { background:#e4f4ee;color:#13775b;border-radius:8px;padding:3px 8px;font-weight:650; }
-      .brand { font-size:11px;font-weight:650;letter-spacing:1px;text-transform:uppercase;color:#6a7c81; }
-      button { font:inherit;cursor:pointer; }
-      .close { margin-left:auto;background:transparent;border:0;color:#728289;font-size:22px;padding:0 5px; }
-      .word { padding:0 16px;font-size:20px;line-height:1.3;font-weight:650;overflow-wrap:anywhere;
-        max-height:78px;overflow:auto; }
-      .actions { display:flex;gap:8px;padding:14px 16px; }
-      .action { flex:1;border:1px solid #dce6e5;border-radius:10px;padding:9px 10px;background:#f7faf9;color:#28444b;font-weight:550; }
-      .primary { background:#14775e;color:#fff;border-color:#14775e; }
-      .action:hover { filter:brightness(.96); }
-      .action:disabled { cursor:wait;opacity:.65; }
-      button:focus-visible { outline:3px solid #8cd4bc;outline-offset:2px; }
-      .result { margin:0 16px 14px;padding-top:12px;border-top:1px solid #e7eeec;
-        max-height:min(260px,calc(100vh - 230px));overflow:auto; }
+      .card { --we-bg:#fff;--we-text:#19332e;--we-muted:#61756f;--we-line:#e0e9e4;
+        --we-soft:#f4f8f5;--we-accent:#16654f;--we-on-accent:#fff;--we-tint:#e7f3ec;--we-error:#a93d32;
+        width:min(392px,calc(100vw - 24px));max-height:calc(100dvh - 24px);overflow:auto;
+        overscroll-behavior:contain;scrollbar-width:thin;background:var(--we-bg);color:var(--we-text);
+        border:1px solid var(--we-line);border-radius:20px;box-shadow:0 16px 48px #142e3326,0 2px 8px #142e3310;
+        font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;text-align:left;color-scheme:light; }
+      .header { display:flex;align-items:center;gap:10px;padding:16px 18px 14px; }
+      .mark { display:grid;place-items:center;width:34px;height:34px;flex:none;background:var(--we-tint);
+        color:var(--we-accent);border-radius:11px;font:650 17px/1 Georgia,serif; }
+      .brand-stack { min-width:0;flex:1; }
+      .brand { display:block;font-weight:650;font-size:13px;letter-spacing:.1px; }
+      .tagline { display:block;color:var(--we-muted);font-size:11px;margin-top:1px; }
+      button { font:inherit;cursor:pointer;transition:background .15s,border-color .15s; }
+      .settings,.close { display:grid;place-items:center;width:32px;height:32px;flex:none;padding:0;
+        border:1px solid transparent;border-radius:9px;background:transparent;color:var(--we-muted);font-size:19px; }
+      .close { font-size:23px; }
+      .settings:hover,.close:hover { background:var(--we-soft);border-color:var(--we-line);color:var(--we-text); }
+      .selection-label { padding:0 18px;margin-bottom:5px;font-size:10px;font-weight:650;letter-spacing:1.1px;
+        text-transform:uppercase;color:var(--we-muted); }
+      .word { margin:0 18px;font-size:23px;line-height:1.35;font-weight:600;overflow-wrap:anywhere;
+        max-height:96px;overflow:auto;scrollbar-width:thin; }
+      .actions { display:grid;grid-template-columns:1fr 1.55fr 1fr;gap:8px;padding:16px 18px; }
+      .action { min-width:0;min-height:42px;border:1px solid var(--we-line);border-radius:11px;
+        padding:9px 8px;background:var(--we-bg);color:var(--we-text);font-size:13px;font-weight:550;text-align:center; }
+      .primary { background:var(--we-accent);color:var(--we-on-accent);border-color:var(--we-accent); }
+      .action:not(.primary):hover { background:var(--we-soft);border-color:var(--we-accent); }
+      .primary:hover { filter:brightness(1.08); }
+      .action:disabled { cursor:wait;opacity:.55; }
+      button:focus-visible { outline:3px solid #77baa0;outline-offset:3px; }
+      .result { margin:0 18px 16px;padding:14px;background:var(--we-soft);border:1px solid var(--we-line);border-radius:13px;
+        max-height:min(300px,calc(100dvh - 210px));overflow:auto;overscroll-behavior:contain;scrollbar-width:thin; }
       [hidden] { display:none!important; }
-      .status { display:flex;align-items:center;gap:8px;color:#59727a;font-size:12px;margin-bottom:8px; }
-      .dot { width:7px;height:7px;border-radius:50%;background:#14775e;flex:none; }
+      .status { display:flex;align-items:center;gap:8px;color:var(--we-muted);font-size:11px;font-weight:550;
+        line-height:1.5;margin-bottom:10px; }
+      #status { flex:1;min-width:0;overflow-wrap:anywhere; }
+      .dot { width:6px;height:6px;border-radius:50%;background:var(--we-accent);flex:none; }
       .loading .dot { animation:pulse 1.3s ease-in-out infinite; }
-      .error .dot { background:#b04a3d; }
-      .answer { white-space:pre-wrap;overflow-wrap:anywhere; }
+      .error .dot { background:var(--we-error); }
+      .error .status { color:var(--we-error); }
+      .answer { white-space:pre-wrap;overflow-wrap:anywhere;font-size:16px;line-height:1.65; }
+      .answer:empty { display:none; }
       .translation { font-family:"Noto Nastaliq Urdu","Noto Naskh Arabic","Geeza Pro",serif;line-height:1.9; }
-      .speaker { margin-left:auto;border:0;border-radius:8px;background:#e4f4ee;color:#13775b;padding:5px 8px; }
-      .speech-note { color:#6a7c81;font-size:12px;margin-top:6px; }
-      .settings { border:0;background:transparent;color:#728289;padding:0 5px;font-size:18px; }
-      .footer { padding:9px 16px;background:#f7faf9;color:#71858a;font-size:11px;display:flex;justify-content:space-between; }
+      .speaker { display:grid;place-items:center;flex:none;width:32px;height:32px;border:1px solid var(--we-line);
+        border-radius:9px;background:var(--we-bg);color:var(--we-accent);padding:0;font-size:15px; }
+      .speaker:hover { background:var(--we-tint); }
+      .speech-note { color:var(--we-muted);font-size:12px;margin-top:8px; }
+      .speech-note:empty { display:none; }
+      .footer { padding:10px 18px;background:var(--we-soft);border-top:1px solid var(--we-line);
+        color:var(--we-muted);font-size:10px;display:flex;align-items:center;justify-content:space-between;gap:12px; }
+      .version { font-variant-numeric:tabular-nums; }
       @keyframes pulse { 50% { opacity:.3; } }
-      @media(prefers-reduced-motion:reduce) { .loading .dot { animation:none; } }
+      @media(max-width:360px) { .actions { grid-template-columns:1fr 1fr; }
+        .primary { grid-column:1 / -1;grid-row:2; } }
+      @media(pointer:coarse) { .action,.settings,.close,.speaker { min-height:44px; }.settings,.close,.speaker { width:44px; } }
+      @media(prefers-reduced-motion:reduce) { .loading .dot { animation:none; }button { transition:none; } }
+      @media(prefers-color-scheme:dark) { .card { --we-bg:#18231f;--we-text:#edf4ef;--we-muted:#a5b9ae;
+        --we-line:#35463b;--we-soft:#202f27;--we-accent:#a4d7b8;--we-on-accent:#142b1d;--we-tint:#2a4031;
+        --we-error:#f2a99e;color-scheme:dark; } }
     </style>
     <section class="card" aria-label="Word Explainer">
-      <div class="header"><span class="mark" aria-hidden="true">W</span><span class="brand">Word Explainer</span><button class="settings" id="open-settings" type="button" aria-label="Settings" title="Settings">⚙</button><button class="close" id="close" type="button" aria-label="Close">×</button></div>
-      <div class="word" id="word"></div>
+      <div class="header"><span class="mark" aria-hidden="true">W</span><div class="brand-stack"><span class="brand">Word Explainer</span><span class="tagline">A little clarity, right here.</span></div><button class="settings" id="open-settings" type="button" aria-label="Settings" title="Settings">⚙</button><button class="close" id="close" type="button" aria-label="Close">×</button></div>
+      <div class="selection-label">Selected text</div>
+      <div class="word" id="word" dir="auto"></div>
       <div class="actions"><button class="action" id="speak" type="button">Listen</button><button class="action primary" id="explain" type="button">Ask to ChatGPT</button><button class="action" id="translate" type="button">Translate</button></div>
       <div class="result" id="result" aria-live="polite" hidden><div class="status"><span class="dot" aria-hidden="true"></span><span id="status"></span><button class="speaker" id="listen-translation" type="button" aria-label="Listen to translation" title="Listen to translation" hidden>🔊</button></div><div class="answer" id="answer" dir="auto"></div><div class="speech-note" id="speech-note" role="status"></div></div>
-      <div class="footer"><span></span><span>v0.1.5 · Esc to close</span></div>
+      <div class="footer"><span>Esc to close</span><span class="version">v0.1.5</span></div>
     </section>`;
   document.documentElement.appendChild(host);
   let settings = { language:"en-US", rate:1, translationLanguage:"Urdu", translationFontSize:20 };
@@ -81,6 +109,7 @@
   function stopTranslationSpeech(){
     if(speechId)send({type:"STOP_TRANSLATION_SPEECH"}).catch(()=>{});
     speechId=null;el("listen-translation").textContent="🔊";
+    el("listen-translation").ariaLabel="Listen to translation";el("listen-translation").title="Listen to translation";
   }
   function fitPanel(){
     const rect=host.getBoundingClientRect();
@@ -119,7 +148,7 @@
     el("listen-translation").hidden=!spokenTranslation;el("speech-note").textContent="";
     el("answer").textContent=result.ok?result.text:(result.error||"No answer received.");
     el("answer").className=spokenTranslation?"answer translation":"answer";
-    el("answer").style.fontSize=spokenTranslation?"20px":"14px";
+    el("answer").style.fontSize=spokenTranslation?"20px":"16px";
     if(spokenTranslation)applyTranslationSize();
     fitPanel();
   }
@@ -138,8 +167,8 @@
   chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
     if(sender.id!==chrome.runtime.id)return;
     if(message.type==="TRANSLATION_SPEECH_STATUS"&&message.speechId===speechId){
-      if(message.state==="playing"){el("listen-translation").textContent="■";el("speech-note").textContent="";}
-      else {speechId=null;el("listen-translation").textContent="🔊";el("speech-note").textContent=message.state==="error"?(message.error||"Unable to play audio."):"";}
+      if(message.state==="playing"){el("listen-translation").textContent="■";el("listen-translation").ariaLabel="Stop reading translation";el("listen-translation").title="Stop reading translation";el("speech-note").textContent="";}
+      else {speechId=null;el("listen-translation").textContent="🔊";el("listen-translation").ariaLabel="Listen to translation";el("listen-translation").title="Listen to translation";el("speech-note").textContent=message.state==="error"?(message.error||"Unable to play audio."):"";}
       sendResponse({received:true});return;
     }
     if(message.type==="SHOW_SELECTION_MENU"){showSelection();sendResponse({ok:true});return;}
@@ -181,7 +210,7 @@
   function requestAction(action){
     selectedAction=action;
     stopTranslationSpeech();spokenTranslation=null;el("listen-translation").hidden=true;
-    el("speech-note").textContent="";el("answer").className="answer";el("answer").style.fontSize="14px";
+    el("speech-note").textContent="";el("answer").className="answer";el("answer").style.fontSize="16px";
     const requestId=crypto.randomUUID?.()||`${Date.now()}-${Math.random().toString(36).slice(2)}`;
     activeRequest=requestId;
     const job={text:selectedText,action,targetLanguage:settings.translationLanguage,
