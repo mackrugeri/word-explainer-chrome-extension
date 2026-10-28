@@ -176,3 +176,18 @@ async function testAudioRouting(){
 }
 await testTranslationAudio();await testAudioRouting();
 console.log('PASS: Urdu Google audio, Unicode chunk limits, playback rate, audio cleanup, offscreen playback without tabs, and player-to-panel status routing.');
+
+async function testToolbarPopupLaunch(mode){
+  const popupScript=await fs.readFile(dir+'popup.js','utf8');new vm.Script(popupScript);
+  let click,opened=0;
+  const button={disabled:false,addEventListener:(event,fn)=>{assert.equal(event,'click');click=fn;}};
+  const status={hidden:true,textContent:''};
+  const document={getElementById:id=>id==='settings'?button:status};
+  const chrome=mode==='missing-context'?{}:{runtime:{openOptionsPage:async()=>{opened++;if(mode==='failure')throw Error('Simulated launch failure');}}};
+  vm.runInNewContext(popupScript,{document,chrome});await click();
+  assert.equal(button.disabled,false,'Settings control must recover after completion');
+  assert.equal(status.hidden,mode==='success');
+  if(mode==='success')assert.equal(opened,1);else assert.ok(status.textContent.includes('Could not open settings'));
+}
+await testToolbarPopupLaunch('success');await testToolbarPopupLaunch('failure');await testToolbarPopupLaunch('missing-context');
+console.log('PASS: toolbar Settings launch, rejected launch promise, missing extension context, visible failure status, and button recovery.');

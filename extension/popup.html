@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Word Explainer</title><link rel="stylesheet" href="popup.css"></head>
+<head><meta charset="utf-8"><title>Word Explainer</title><link rel="stylesheet" href="popup.css"></head>
 <body>
 <header><span class="mark" aria-hidden="true">W</span><div><h1>Word Explainer</h1><p>A little clarity, right here.</p></div></header>
 <main>
@@ -8,6 +8,7 @@
 <ol><li><span class="step">1</span><span>Highlight text on a web page.</span></li><li><span class="step">2</span><span>Open the panel with your shortcut.</span></li><li><span class="step">3</span><span>Choose Listen, Translate, or Ask to ChatGPT.</span></li></ol>
 <div class="shortcuts"><div><span>Mac</span><span><kbd>⌘</kbd> <kbd>⇧</kbd> <kbd>Y</kbd></span></div><div><span>Windows / Linux</span><span><kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>Y</kbd></span></div></div>
 <button id="settings" type="button">Open settings <span aria-hidden="true">↗</span></button>
+<p id="popup-status" role="status" aria-live="polite" hidden></p>
 <p class="hint">Change the shortcut at <code>chrome://extensions/shortcuts</code>.</p>
 </main>
 <footer>After an update, refresh your web page. Chrome's internal pages are unsupported.</footer>
