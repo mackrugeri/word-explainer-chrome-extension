@@ -1,6 +1,6 @@
 // UI automation only; never reads account cookies or existing user conversations.
 (() => {
-  const BUILD = "0.1.5";
+  const BUILD = "0.1.9";
   let busy = false;
   let stage = "Connecting to ChatGPT…";
   const pause = ms => new Promise(resolve => setTimeout(resolve, ms));

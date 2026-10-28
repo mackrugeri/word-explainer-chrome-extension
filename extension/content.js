@@ -1,5 +1,5 @@
 (() => {
-  const BUILD="0.1.5";
+  const BUILD="0.1.9";
   const host = document.createElement("div");
   host.style.cssText = "position:fixed;z-index:2147483647;display:none";
   const root = host.attachShadow({ mode: "closed" });
@@ -37,11 +37,16 @@
       .action:disabled { cursor:wait;opacity:.55; }
       button:focus-visible { outline:3px solid #77baa0;outline-offset:3px; }
       .result { margin:0 18px 16px;padding:14px;background:var(--we-soft);border:1px solid var(--we-line);border-radius:13px;
-        max-height:min(300px,calc(100dvh - 210px));overflow:auto;overscroll-behavior:contain;scrollbar-width:thin; }
+        overflow:hidden;overscroll-behavior:contain;scrollbar-width:thin; }
+      .result-body { max-height:min(180px,35dvh);overflow:auto;overscroll-behavior:contain;scrollbar-width:thin; }
+      summary.status { cursor:pointer;list-style:disclosure-closed;margin-bottom:0; }
+      details[open] summary.status { margin-bottom:10px;list-style:disclosure-open; }
+      #drag-handle { cursor:grab;touch-action:none;user-select:none; }
+      #drag-handle:active { cursor:grabbing; }
       [hidden] { display:none!important; }
       .status { display:flex;align-items:center;gap:8px;color:var(--we-muted);font-size:11px;font-weight:550;
         line-height:1.5;margin-bottom:10px; }
-      #status { flex:1;min-width:0;overflow-wrap:anywhere; }
+      #status,#translation-status { flex:1;min-width:0;overflow-wrap:anywhere; }
       .dot { width:6px;height:6px;border-radius:50%;background:var(--we-accent);flex:none; }
       .loading .dot { animation:pulse 1.3s ease-in-out infinite; }
       .error .dot { background:var(--we-error); }
@@ -56,6 +61,10 @@
       .speech-note:empty { display:none; }
       .footer { padding:10px 18px;background:var(--we-soft);border-top:1px solid var(--we-line);
         color:var(--we-muted);font-size:10px;display:flex;align-items:center;justify-content:space-between;gap:12px; }
+      .llm-choices { padding:0 18px 14px;color:var(--we-muted);font-size:12px; }
+      .llm-choices[hidden] { display:none; }
+      .provider-actions { display:flex;gap:8px;margin-top:8px; }
+      .provider-actions .action { flex:1; }
       .version { font-variant-numeric:tabular-nums; }
       @keyframes pulse { 50% { opacity:.3; } }
       @media(max-width:360px) { .actions { grid-template-columns:1fr 1fr; }
@@ -67,12 +76,14 @@
         --we-error:#f2a99e;color-scheme:dark; } }
     </style>
     <section class="card" aria-label="Word Explainer">
-      <div class="header"><span class="mark" aria-hidden="true">W</span><div class="brand-stack"><span class="brand">Word Explainer</span><span class="tagline">A little clarity, right here.</span></div><button class="settings" id="open-settings" type="button" aria-label="Settings" title="Settings">⚙</button><button class="close" id="close" type="button" aria-label="Close">×</button></div>
+      <div class="header" id="drag-handle" title="Drag to move"><span class="mark" aria-hidden="true">W</span><div class="brand-stack"><span class="brand">Word Explainer</span><span class="tagline">A little clarity, right here.</span></div><button class="settings" id="open-settings" type="button" aria-label="Settings" title="Settings">⚙</button><button class="close" id="close" type="button" aria-label="Close">×</button></div>
       <div class="selection-label">Selected text</div>
       <div class="word" id="word" dir="auto"></div>
-      <div class="actions"><button class="action" id="speak" type="button">Listen</button><button class="action primary" id="explain" type="button">Ask to ChatGPT</button><button class="action" id="translate" type="button">Translate</button></div>
-      <div class="result" id="result" aria-live="polite" hidden><div class="status"><span class="dot" aria-hidden="true"></span><span id="status"></span><button class="speaker" id="listen-translation" type="button" aria-label="Listen to translation" title="Listen to translation" hidden>🔊</button></div><div class="answer" id="answer" dir="auto"></div><div class="speech-note" id="speech-note" role="status"></div></div>
-      <div class="footer"><span>Esc to close</span><span class="version">v0.1.5</span></div>
+      <div class="actions"><button class="action" id="speak" type="button">Listen</button><button class="action primary" id="ask-llm" type="button" aria-expanded="false" aria-controls="llm-choices">Ask to LLM</button><button class="action" id="translate" type="button">Translate</button></div>
+      <div class="llm-choices" id="llm-choices" role="group" aria-label="Choose an AI provider" hidden><span>Ask which AI?</span><div class="provider-actions"><button class="action primary" id="explain" type="button">ChatGPT</button><button class="action primary" id="gemini" type="button">Gemini</button></div></div>
+      <details class="result" id="result" hidden open><summary class="status"><span class="dot" aria-hidden="true"></span><span id="status">AI explanation</span></summary><div class="result-body" tabindex="0" aria-label="AI explanation"><div class="answer" id="answer" dir="auto"></div></div></details>
+      <details class="result" id="translation-result" hidden open><summary class="status"><span class="dot" aria-hidden="true"></span><span id="translation-status">Translation</span></summary><div class="result-body" tabindex="0" aria-label="Translation"><button class="speaker" id="listen-translation" type="button" aria-label="Listen to translation" title="Listen to translation" hidden>🔊</button><div class="answer translation" id="translation-answer" dir="auto"></div><div class="speech-note" id="speech-note" role="status"></div></div></details>
+      <div class="footer"><span>Esc to close</span><span class="version">v0.1.9</span></div>
     </section>`;
   document.documentElement.appendChild(host);
   let settings = { language:"en-US", rate:1, translationLanguage:"Urdu", translationFontSize:20 };
@@ -82,9 +93,9 @@
     for(const key of Object.keys(settings))if(changes[key])settings[key]=changes[key].newValue;
     applyTranslationSize();
   });
-  let selectedText="", activeRequest=null, selectedAction="explain";
-  const answerKey=(text,action,language)=>`${action}|${action==="translate"?language:""}|${text}`;
-  const setBusy=value=>{el("explain").disabled=value;el("translate").disabled=value;};
+  let selectedText="", activeRequest=null, selectedAction="explain", selectedProvider="chatgpt";
+  const answerKey=(text,action,language,provider=selectedProvider)=>`${action}|${action==="translate"?language:provider}|${text}`;
+  const setBusy=value=>{el("ask-llm").disabled=value;el("explain").disabled=value;el("gemini").disabled=value;el("translate").disabled=value;};
   async function send(message){
     try {
       if(!chrome.runtime?.id)throw new Error("Extension context invalidated");
@@ -99,11 +110,11 @@
   const answers = new Map();
   const el=(id)=>root.getElementById(id);
   let spokenTranslation=null, speechId=null;
-  const hide=()=>{ host.style.display="none";stopTranslationSpeech(); };
+  const hide=()=>{ host.style.display="none";el("llm-choices").hidden=true;el("ask-llm").setAttribute("aria-expanded","false");stopTranslationSpeech(); };
   function applyTranslationSize(){
     if(!spokenTranslation)return;
     const size=Number(settings.translationFontSize);
-    el("answer").style.fontSize=`${Number.isFinite(size)?Math.max(14,Math.min(32,size)):20}px`;
+    el("translation-answer").style.fontSize=`${Number.isFinite(size)?Math.max(14,Math.min(32,size)):20}px`;
     fitPanel();
   }
   function stopTranslationSpeech(){
@@ -118,45 +129,61 @@
   }
   function showSelection(){
     hide();
-    const active=document.activeElement;
-    if(active?.matches("input, textarea")||active?.isContentEditable)return;
+    // Focus is not the selection: a search field can keep focus while a
+    // result snippet elsewhere on the page has a valid text range.
     const selection=window.getSelection();
     selectedText=String(selection||"").trim().slice(0,1000);
-    if(!selectedText||!selection.rangeCount)return;
-    const rect=selection.getRangeAt(0).getBoundingClientRect();
+    if(!selectedText||!selection.rangeCount)return false;
+    const range=selection.getRangeAt(0);
+    const node=range.commonAncestorContainer;
+    const container=node?.nodeType===1?node:node?.parentElement;
+    // Keep the existing editable-field boundary, checking the actual range.
+    if(container?.isContentEditable||container?.closest?.("input, textarea"))return false;
+    const rect=range.getBoundingClientRect();
     el("word").textContent=selectedText;
-    el("result").hidden=true;
-    const saved=answers.get(answerKey(selectedText,selectedAction,settings.translationLanguage));
+    el("result").hidden=true;el("translation-result").hidden=true;spokenTranslation=null;
+    const saved=[...answers.entries()].filter(([key])=>key.endsWith(`|${selectedText}`)).map(([,value])=>value);
+    for(const result of saved)if(result.action!=="translate"||result.targetLanguage===settings.translationLanguage)renderResult(result);
     const running=[...pending.entries()].find(([,job])=>job.text===selectedText);
     activeRequest=running?.[0]||null;
     setBusy(!!running);
-    if(saved)renderResult(saved);
-    if(running){el("result").hidden=false;el("result").className="result loading";
-      el("status").textContent=running[1].stage||"Waiting for ChatGPT…";}
+
+    if(running){const view=resultView(running[1].action);view.section.hidden=false;view.section.className="result loading";view.status.textContent=running[1].stage||"Waiting for the answer…";}
+    expandSection(selectedAction);
     host.style.display="block";
     host.style.left=`${rect.left}px`;
     const height=host.getBoundingClientRect().height;
     host.style.top=`${rect.top>=height+12?rect.top-height-12:rect.bottom+12}px`;
     fitPanel();
+    return true;
+  }
+  function resultView(action){
+    const translation=action==="translate";
+    return {section:el(translation?"translation-result":"result"),status:el(translation?"translation-status":"status"),answer:el(translation?"translation-answer":"answer")};
+  }
+  function expandSection(action){
+    el("result").open=action!=="translate";el("translation-result").open=action==="translate";
   }
   function renderResult(result){
-    el("result").hidden=false;
-    el("result").className=result.ok?"result":"result error";
-    el("status").textContent=result.ok?(result.label||"ChatGPT · explanation"):"Unable to finish";
-    stopTranslationSpeech();
-    spokenTranslation=result.ok&&result.action==="translate"?{text:result.text,language:result.targetLanguage}:null;
-    el("listen-translation").hidden=!spokenTranslation;el("speech-note").textContent="";
-    el("answer").textContent=result.ok?result.text:(result.error||"No answer received.");
-    el("answer").className=spokenTranslation?"answer translation":"answer";
-    el("answer").style.fontSize=spokenTranslation?"20px":"16px";
-    if(spokenTranslation)applyTranslationSize();
+    const view=resultView(result.action);
+    view.section.hidden=false;view.section.className=result.ok?"result":"result error";
+    view.status.textContent=result.ok?result.label:`${result.action==="translate"?"Translation":"AI explanation"} · Unable to finish`;
+    view.answer.textContent=result.ok?result.text:(result.error||"No answer received.");
+    if(result.action==="translate"){
+      stopTranslationSpeech();
+      spokenTranslation=result.ok?{text:result.text,language:result.targetLanguage}:null;
+      el("listen-translation").hidden=!spokenTranslation;el("speech-note").textContent="";
+      if(spokenTranslation)applyTranslationSize();
+    }
     fitPanel();
   }
   function complete(requestId,result){
     const job=pending.get(requestId);
     if(!job)return;
     clearTimeout(job.timer);pending.delete(requestId);
-    result={...result,action:job.action,targetLanguage:job.targetLanguage,label:job.action==="translate"?`Google Translate · ${job.targetLanguage}`:"ChatGPT · explanation"};
+    result={...result,action:job.action,provider:job.provider,targetLanguage:job.targetLanguage,label:job.action==="translate"?`Google Translate · ${job.targetLanguage}`:`${job.provider==="gemini"?"Gemini":"ChatGPT"} · explanation`};
+    if(result.ok)globalThis.WordReviewPanel?.record({pageUrl:job.pageUrl,text:job.text,action:job.action,
+      provider:job.provider,language:job.targetLanguage,answer:result.text});
     answers.set(job.key,result);
     if(answers.size>20)answers.delete(answers.keys().next().value);
     if(activeRequest===requestId){
@@ -171,7 +198,10 @@
       else {speechId=null;el("listen-translation").textContent="🔊";el("listen-translation").ariaLabel="Listen to translation";el("listen-translation").title="Listen to translation";el("speech-note").textContent=message.state==="error"?(message.error||"Unable to play audio."):"";}
       sendResponse({received:true});return;
     }
-    if(message.type==="SHOW_SELECTION_MENU"){showSelection();sendResponse({ok:true});return;}
+    if(message.type==="SHOW_SELECTION_MENU"){
+      if(message.build&&message.build!==BUILD){sendResponse({ok:false,error:"Refresh this web page after updating Word Explainer."});return;}
+      sendResponse({ok:true,shown:showSelection(),build:BUILD});return;
+    }
     if(message.type==="EXPLANATION_RESULT"){
       complete(message.requestId,message);sendResponse({received:true});return;
     }
@@ -180,8 +210,8 @@
     if(message.type==="EXPLANATION_PROGRESS"||message.type==="EXPLANATION_PARTIAL"){
       job.stage=message.stage;
       if(message.requestId===activeRequest&&selectedText===job.text){
-        el("status").textContent=message.stage;
-        if(typeof message.text==="string"){el("answer").textContent=message.text;fitPanel();}
+        const view=resultView(job.action);view.status.textContent=message.stage;
+        if(typeof message.text==="string"){view.answer.textContent=message.text;fitPanel();}
       }
       sendResponse({received:true});
     }
@@ -191,6 +221,19 @@
   document.addEventListener("scroll",event=>{if(!event.composedPath().includes(host))hide();},true);
   window.addEventListener("resize",hide);
   root.addEventListener("mousedown",event=>{if(event.target.closest?.("button"))event.preventDefault();});
+  let drag=null;
+  const handle=el("drag-handle");
+  handle.addEventListener("pointerdown",event=>{
+    if(event.button!==0||event.target.closest?.("button"))return;
+    const rect=host.getBoundingClientRect();drag={id:event.pointerId,x:event.clientX,y:event.clientY,left:rect.left,top:rect.top};
+    handle.setPointerCapture?.(event.pointerId);event.preventDefault();
+  });
+  handle.addEventListener("pointermove",event=>{
+    if(!drag||event.pointerId!==drag.id)return;
+    host.style.left=`${drag.left+event.clientX-drag.x}px`;host.style.top=`${drag.top+event.clientY-drag.y}px`;fitPanel();
+  });
+  const endDrag=()=>{drag=null;};
+  handle.addEventListener("pointerup",endDrag);handle.addEventListener("pointercancel",endDrag);
   el("close").addEventListener("click",hide);
   el("open-settings").addEventListener("click",()=>send({type:"OPEN_SETTINGS"}).catch(()=>{}));
   el("listen-translation").addEventListener("click",()=>{
@@ -207,27 +250,33 @@
     speechSynthesis.cancel();const utterance=new SpeechSynthesisUtterance(selectedText);
     utterance.lang=settings.language;utterance.rate=settings.rate;speechSynthesis.speak(utterance);
   });
-  function requestAction(action){
+  function requestAction(action,provider="chatgpt"){
+    el("llm-choices").hidden=true;el("ask-llm").setAttribute("aria-expanded","false");
+    selectedProvider=provider;
     selectedAction=action;
-    stopTranslationSpeech();spokenTranslation=null;el("listen-translation").hidden=true;
-    el("speech-note").textContent="";el("answer").className="answer";el("answer").style.fontSize="16px";
+    if(action==="translate"){stopTranslationSpeech();spokenTranslation=null;el("listen-translation").hidden=true;el("speech-note").textContent="";}
     const requestId=crypto.randomUUID?.()||`${Date.now()}-${Math.random().toString(36).slice(2)}`;
     activeRequest=requestId;
-    const job={text:selectedText,action,targetLanguage:settings.translationLanguage,
+    const job={text:selectedText,action,provider,pageUrl:typeof location!=="undefined"?location.href.split("#")[0]:"",targetLanguage:settings.translationLanguage,
       key:answerKey(selectedText,action,settings.translationLanguage),
-      stage:action==="translate"?`Translating into ${settings.translationLanguage} with Google…`:"Opening ChatGPT…",timer:null};
+      stage:action==="translate"?`Translating into ${settings.translationLanguage} with Google…`:`Opening ${provider==="gemini"?"Gemini":"ChatGPT"}…`,timer:null};
     pending.set(requestId,job);
-    el("result").hidden=false;el("result").className="result loading";
-    el("status").textContent=job.stage;el("answer").textContent="";
+    const view=resultView(action);view.section.hidden=false;view.section.className="result loading";
+    view.status.textContent=job.stage;view.answer.textContent="";expandSection(action);
     setBusy(true);fitPanel();
     job.timer=setTimeout(()=>{
-      complete(requestId,{ok:false,error:"The request timed out. Check ChatGPT and retry."});
+      complete(requestId,{ok:false,error:"The request timed out. Check the selected AI website and retry."});
       send({type:"CANCEL_EXPLANATION",requestId}).catch(()=>{});
     },155000);
-    send({type:action==="translate"?"TRANSLATE_SELECTION":"EXPLAIN_SELECTION",text:selectedText,requestId,build:BUILD,action,translationLanguage:job.targetLanguage}).then(ack=>{
+    send({type:action==="translate"?"TRANSLATE_SELECTION":"EXPLAIN_SELECTION",text:selectedText,requestId,build:BUILD,action,provider,translationLanguage:job.targetLanguage}).then(ack=>{
       if(!ack?.accepted)complete(requestId,{ok:false,error:ack?.error||"The extension could not start the request."});
     }).catch(error=>complete(requestId,{ok:false,error:error.message||"Connection lost. Refresh this page."}));
   }
+  el("ask-llm").addEventListener("click",()=>{
+    const choices=el("llm-choices");choices.hidden=!choices.hidden;
+    el("ask-llm").setAttribute("aria-expanded",String(!choices.hidden));fitPanel();
+  });
   el("explain").addEventListener("click",()=>requestAction("explain"));
+  el("gemini").addEventListener("click",()=>requestAction("explain","gemini"));
   el("translate").addEventListener("click",()=>requestAction("translate"));
 })();
