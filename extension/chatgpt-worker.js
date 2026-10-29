@@ -1,7 +1,9 @@
 // UI automation only; never reads account cookies or existing user conversations.
 (() => {
-  const BUILD = "0.1.9";
+  const BUILD = "0.2.6";
   let busy = false;
+  let cleanupEligible = false;
+  let ownedPrompt = "";
   let stage = "Connecting to ChatGPT…";
   const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
   let disposed = false;
@@ -32,7 +34,7 @@
   }
   const stopButton = () => document.querySelector('[data-testid="stop-button"], button[aria-label="Stop generating"], button[aria-label="Stop"]');
   const sendButton = () => document.querySelector('button[data-testid="send-button"], button[aria-label="Send prompt"], button[aria-label="Send message"], button[aria-label="Send"], form button[type="submit"]');
-  async function readAnswer() {
+  async function readAnswer(limit = 2000) {
     let previous = "", stableSince = Date.now();
     return until(() => {
       // Guest layouts can leave an empty trailing assistant placeholder.
@@ -44,7 +46,7 @@
         previous = text; stableSince = Date.now();
         if (text) { progress("Receiving the explanation…"); emit({ type: "CHATGPT_PARTIAL", text }); }
       }
-      if (text && !stopButton() && Date.now() - stableSince >= 2500) return text.slice(0, 2000);
+      if (text && !stopButton() && Date.now() - stableSince >= 2500) return text.slice(0, limit);
       return null;
     }, 60000, "No readable answer arrived. ChatGPT may need sign-in, verification, or a foreground tab.");
   }
@@ -85,16 +87,18 @@
     if (!ack?.ok) throw new Error("The request was cancelled. Please retry.");
     send.click(); progress("Question sent · waiting for the answer…");
   }
-  function launch(prompt, resume = false) {
+  function launch(prompt, resume = false, task = "explain", expectedPrompt = "") {
     if (busy || disposed) return;
     busy = true;
+    ownedPrompt = resume ? expectedPrompt : prompt;
     heartbeat = setInterval(() => progress(stage), 4000);
     (async () => {
       try {
         if (!resume) await prepareAndSend(prompt);
         else progress("Reconnected · reading ChatGPT's answer…");
-        const text = await readAnswer();
-        await emit({ type: "CHATGPT_RESULT", ok: true, text });
+        cleanupEligible = true;
+        const text = await readAnswer(task === "context-summary" ? 12000 : 2000);
+        await emit({ type: "CHATGPT_RESULT", ok: true, text, cleanupPath: cleanupEligible ? location.pathname : undefined });
       } catch (error) { await emit({ type: "CHATGPT_RESULT", ok: false, error: error.message }); }
       finally { clearInterval(heartbeat); heartbeat = null; busy = false; }
     })();
@@ -103,19 +107,25 @@
     try {
       if (disposed || !chrome.runtime?.id || sender.id !== chrome.runtime.id) return;
     } catch { dispose(); return; }
+    if (message.type === "CHATGPT_CLEANUP") {
+      if (!cleanupEligible || !globalThis.WordChatCleanup?.validPath(message.path)) { sendResponse({deleted:false}); return; }
+      cleanupEligible = false;
+      WordChatCleanup.remove(message.path,message.expectedPrompt||ownedPrompt).then(sendResponse,()=>sendResponse({deleted:false,error:"Chat cleanup failed."}));
+      return true; // Bounded UI cleanup only, after the answer has been saved.
+    }
     if (message.type === "CHATGPT_READY") { sendResponse({ ready: true, build: BUILD }); return; }
     if (message.type === "CHATGPT_START") {
-      if (busy || typeof message.prompt !== "string" || message.prompt.length > 2500) {
+      if (busy || typeof message.prompt !== "string" || message.prompt.length > (message.task === "context-summary" ? 28000 : 2500)) {
         sendResponse({ accepted: false, error: "ChatGPT is already handling a request or the prompt is invalid." }); return;
       }
       sendResponse({ accepted: true }); // Synchronous acknowledgement, not the answer.
-      launch(message.prompt);
+      launch(message.prompt, false, message.task);
     }
   };
   try { chrome.runtime.onMessage.addListener(onMessage); }
   catch { dispose(); return; }
   emit({ type: "CHATGPT_RESUME" }).then((response) => {
     const job = response?.job;
-    if (job?.phase === "submitted" && !busy && !disposed) launch(null, true);
+    if (job?.phase === "submitted" && !busy && !disposed) launch(null, true, job.task, job.expectedPrompt);
   }).catch(() => {});
 })();

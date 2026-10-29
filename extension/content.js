@@ -1,5 +1,7 @@
 (() => {
-  const BUILD="0.1.9";
+  const BUILD="0.2.6";
+  const pronunciationAndTranslationOnly=typeof location!=="undefined"&&location.hostname==="chatgpt.com";
+  let contextSelection="";
   const host = document.createElement("div");
   host.style.cssText = "position:fixed;z-index:2147483647;display:none";
   const root = host.attachShadow({ mode: "closed" });
@@ -29,6 +31,7 @@
       .word { margin:0 18px;font-size:23px;line-height:1.35;font-weight:600;overflow-wrap:anywhere;
         max-height:96px;overflow:auto;scrollbar-width:thin; }
       .actions { display:grid;grid-template-columns:1fr 1.55fr 1fr;gap:8px;padding:16px 18px; }
+      .actions.limited { grid-template-columns:1fr 1fr; }
       .action { min-width:0;min-height:42px;border:1px solid var(--we-line);border-radius:11px;
         padding:9px 8px;background:var(--we-bg);color:var(--we-text);font-size:13px;font-weight:550;text-align:center; }
       .primary { background:var(--we-accent);color:var(--we-on-accent);border-color:var(--we-accent); }
@@ -61,6 +64,7 @@
       .speech-note:empty { display:none; }
       .footer { padding:10px 18px;background:var(--we-soft);border-top:1px solid var(--we-line);
         color:var(--we-muted);font-size:10px;display:flex;align-items:center;justify-content:space-between;gap:12px; }
+      .context-action { display:block;margin:0 18px 14px;width:calc(100% - 36px);padding:8px;border:1px solid var(--we-line);border-radius:10px;background:var(--we-soft);color:var(--we-accent);font-size:12px; }
       .llm-choices { padding:0 18px 14px;color:var(--we-muted);font-size:12px; }
       .llm-choices[hidden] { display:none; }
       .provider-actions { display:flex;gap:8px;margin-top:8px; }
@@ -79,11 +83,12 @@
       <div class="header" id="drag-handle" title="Drag to move"><span class="mark" aria-hidden="true">W</span><div class="brand-stack"><span class="brand">Word Explainer</span><span class="tagline">A little clarity, right here.</span></div><button class="settings" id="open-settings" type="button" aria-label="Settings" title="Settings">⚙</button><button class="close" id="close" type="button" aria-label="Close">×</button></div>
       <div class="selection-label">Selected text</div>
       <div class="word" id="word" dir="auto"></div>
-      <div class="actions"><button class="action" id="speak" type="button">Listen</button><button class="action primary" id="ask-llm" type="button" aria-expanded="false" aria-controls="llm-choices">Ask to LLM</button><button class="action" id="translate" type="button">Translate</button></div>
+      <div class="actions" id="actions"><button class="action" id="speak" type="button">Listen</button><button class="action primary" id="ask-llm" type="button" aria-expanded="false" aria-controls="llm-choices">Ask to LLM</button><button class="action" id="translate" type="button">Translate</button></div>
+      <button class="context-action" id="cross-context" type="button">Cross-page context ↗</button>
       <div class="llm-choices" id="llm-choices" role="group" aria-label="Choose an AI provider" hidden><span>Ask which AI?</span><div class="provider-actions"><button class="action primary" id="explain" type="button">ChatGPT</button><button class="action primary" id="gemini" type="button">Gemini</button></div></div>
       <details class="result" id="result" hidden open><summary class="status"><span class="dot" aria-hidden="true"></span><span id="status">AI explanation</span></summary><div class="result-body" tabindex="0" aria-label="AI explanation"><div class="answer" id="answer" dir="auto"></div></div></details>
       <details class="result" id="translation-result" hidden open><summary class="status"><span class="dot" aria-hidden="true"></span><span id="translation-status">Translation</span></summary><div class="result-body" tabindex="0" aria-label="Translation"><button class="speaker" id="listen-translation" type="button" aria-label="Listen to translation" title="Listen to translation" hidden>🔊</button><div class="answer translation" id="translation-answer" dir="auto"></div><div class="speech-note" id="speech-note" role="status"></div></div></details>
-      <div class="footer"><span>Esc to close</span><span class="version">v0.1.9</span></div>
+      <div class="footer"><span>Esc to close</span><span class="version">v0.2.6</span></div>
     </section>`;
   document.documentElement.appendChild(host);
   let settings = { language:"en-US", rate:1, translationLanguage:"Urdu", translationFontSize:20 };
@@ -109,6 +114,7 @@
   const pending = new Map();
   const answers = new Map();
   const el=(id)=>root.getElementById(id);
+  if(pronunciationAndTranslationOnly){el("cross-context").hidden=true;el("ask-llm").hidden=true;el("actions").className="actions limited";}
   let spokenTranslation=null, speechId=null;
   const hide=()=>{ host.style.display="none";el("llm-choices").hidden=true;el("ask-llm").setAttribute("aria-expanded","false");stopTranslationSpeech(); };
   function applyTranslationSize(){
@@ -132,7 +138,8 @@
     // Focus is not the selection: a search field can keep focus while a
     // result snippet elsewhere on the page has a valid text range.
     const selection=window.getSelection();
-    selectedText=String(selection||"").trim().slice(0,1000);
+    contextSelection=String(selection||"").trim();
+    selectedText=contextSelection.slice(0,1000);
     if(!selectedText||!selection.rangeCount)return false;
     const range=selection.getRangeAt(0);
     const node=range.commonAncestorContainer;
@@ -168,6 +175,7 @@
     const view=resultView(result.action);
     view.section.hidden=false;view.section.className=result.ok?"result":"result error";
     view.status.textContent=result.ok?result.label:`${result.action==="translate"?"Translation":"AI explanation"} · Unable to finish`;
+    if(result.warning)view.status.textContent+=" · "+result.warning;
     view.answer.textContent=result.ok?result.text:(result.error||"No answer received.");
     if(result.action==="translate"){
       stopTranslationSpeech();
@@ -251,6 +259,7 @@
     utterance.lang=settings.language;utterance.rate=settings.rate;speechSynthesis.speak(utterance);
   });
   function requestAction(action,provider="chatgpt"){
+    if(pronunciationAndTranslationOnly&&action!=="translate")return;
     el("llm-choices").hidden=true;el("ask-llm").setAttribute("aria-expanded","false");
     selectedProvider=provider;
     selectedAction=action;
@@ -272,7 +281,16 @@
       if(!ack?.accepted)complete(requestId,{ok:false,error:ack?.error||"The extension could not start the request."});
     }).catch(error=>complete(requestId,{ok:false,error:error.message||"Connection lost. Refresh this page."}));
   }
+  el("cross-context").addEventListener("click",async()=>{
+    if(pronunciationAndTranslationOnly)return;
+    if(contextSelection.length>8000){el("cross-context").textContent="Select up to 8,000 characters";return;}
+    const button=el("cross-context");button.disabled=true;
+    try{const ack=await send({type:"OPEN_CONTEXTS",text:contextSelection,title:document.title});
+      if(!ack?.ok)throw new Error(ack?.error||"Could not open contexts.");hide();
+    }catch(error){button.textContent=error.message;}finally{button.disabled=false;}
+  });
   el("ask-llm").addEventListener("click",()=>{
+    if(pronunciationAndTranslationOnly)return;
     const choices=el("llm-choices");choices.hidden=!choices.hidden;
     el("ask-llm").setAttribute("aria-expanded",String(!choices.hidden));fitPanel();
   });
