@@ -1,5 +1,5 @@
 (() => {
-  const BUILD="0.3.3";
+  const BUILD="0.3.4";
   const pronunciationAndTranslationOnly=typeof location!=="undefined"&&location.hostname==="chatgpt.com";
   let contextSelection="";
   const host = document.createElement("div");
@@ -30,8 +30,11 @@
         text-transform:uppercase;color:var(--we-muted); }
       .word { margin:0 18px;font-size:23px;line-height:1.35;font-weight:600;overflow-wrap:anywhere;
         max-height:96px;overflow:auto;scrollbar-width:thin; }
-      .actions { display:grid;grid-template-columns:1fr 1.55fr 1fr;gap:8px;padding:16px 18px; }
+      .actions { display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:16px 18px; }
       .actions.limited { grid-template-columns:1fr 1fr; }
+      .actions.limited #translate { grid-column:1 / -1; }
+      .equation-note { margin:0 18px 12px;font-size:12px;color:var(--we-muted);max-height:100px;overflow:auto;overflow-wrap:anywhere; }
+      .equation-note:empty { display:none; }
       .action { min-width:0;min-height:42px;border:1px solid var(--we-line);border-radius:11px;
         padding:9px 8px;background:var(--we-bg);color:var(--we-text);font-size:13px;font-weight:550;text-align:center; }
       .primary { background:var(--we-accent);color:var(--we-on-accent);border-color:var(--we-accent); }
@@ -72,7 +75,7 @@
       .version { font-variant-numeric:tabular-nums; }
       @keyframes pulse { 50% { opacity:.3; } }
       @media(max-width:360px) { .actions { grid-template-columns:1fr 1fr; }
-        .primary { grid-column:1 / -1;grid-row:2; } }
+        .primary { grid-column:auto;grid-row:auto; } }
       @media(pointer:coarse) { .action,.settings,.close,.speaker { min-height:44px; }.settings,.close,.speaker { width:44px; } }
       @media(prefers-reduced-motion:reduce) { .loading .dot { animation:none; }button { transition:none; } }
       @media(prefers-color-scheme:dark) { .card { --we-bg:#18231f;--we-text:#edf4ef;--we-muted:#a5b9ae;
@@ -83,12 +86,13 @@
       <div class="header" id="drag-handle" title="Drag to move"><span class="mark" aria-hidden="true">W</span><div class="brand-stack"><span class="brand">Word Explainer</span><span class="tagline">A little clarity, right here.</span></div><button class="settings" id="open-settings" type="button" aria-label="Settings" title="Settings">⚙</button><button class="close" id="close" type="button" aria-label="Close">×</button></div>
       <div class="selection-label">Selected text</div>
       <div class="word" id="word" dir="auto"></div>
-      <div class="actions" id="actions"><button class="action" id="speak" type="button">Listen</button><button class="action primary" id="ask-llm" type="button" aria-expanded="false" aria-controls="llm-choices">Ask to LLM</button><button class="action" id="translate" type="button">Translate</button></div>
+      <div class="actions" id="actions"><button class="action" id="speak" type="button">Listen</button><button class="action" id="equation-speak" type="button" aria-pressed="false">Equation Pronunciation</button><button class="action primary" id="ask-llm" type="button" aria-expanded="false" aria-controls="llm-choices">Ask to LLM</button><button class="action" id="translate" type="button">Translate</button></div>
+      <div id="equation-note" class="equation-note" role="status" aria-live="polite"></div>
       <button class="context-action" id="cross-context" type="button">Cross-page context ↗</button>
       <div class="llm-choices" id="llm-choices" role="group" aria-label="Choose an AI provider" hidden><span>Ask which AI?</span><div class="provider-actions"><button class="action primary" id="explain" type="button">ChatGPT</button><button class="action primary" id="gemini" type="button">Gemini</button></div></div>
       <details class="result" id="result" hidden open><summary class="status"><span class="dot" aria-hidden="true"></span><span id="status">AI explanation</span></summary><div class="result-body" tabindex="0" aria-label="AI explanation"><div class="answer" id="answer" dir="auto"></div></div></details>
       <details class="result" id="translation-result" hidden open><summary class="status"><span class="dot" aria-hidden="true"></span><span id="translation-status">Translation</span></summary><div class="result-body" tabindex="0" aria-label="Translation"><button class="speaker" id="listen-translation" type="button" aria-label="Listen to translation" title="Listen to translation" hidden>🔊</button><div class="answer translation" id="translation-answer" dir="auto"></div><div class="speech-note" id="speech-note" role="status"></div></div></details>
-      <div class="footer"><span>Esc to close</span><span class="version">v0.3.3</span></div>
+      <div class="footer"><span>Esc to close</span><span class="version">v0.3.4</span></div>
     </section>`;
   document.documentElement.appendChild(host);
   let settings = { language:"en-US", rate:1, translationLanguage:"Urdu", translationFontSize:20 };
@@ -116,7 +120,7 @@
   const el=(id)=>root.getElementById(id);
   if(pronunciationAndTranslationOnly){el("cross-context").hidden=true;el("ask-llm").hidden=true;el("actions").className="actions limited";}
   let spokenTranslation=null, speechId=null;
-  const hide=()=>{ host.style.display="none";el("llm-choices").hidden=true;el("ask-llm").setAttribute("aria-expanded","false");stopTranslationSpeech(); };
+  const hide=()=>{ host.style.display="none";el("llm-choices").hidden=true;el("ask-llm").setAttribute("aria-expanded","false");stopTranslationSpeech();stopEquationSpeech(); };
   function applyTranslationSize(){
     if(!spokenTranslation)return;
     const size=Number(settings.translationFontSize);
@@ -134,7 +138,7 @@
     host.style.top=`${Math.max(12,Math.min(rect.top,innerHeight-rect.height-12))}px`;
   }
   function showSelection(){
-    hide();
+    hide();el("equation-note").textContent="";
     // Focus is not the selection: a search field can keep focus while a
     // result snippet elsewhere on the page has a valid text range.
     const selection=window.getSelection();
@@ -253,6 +257,33 @@
     send({type:"SPEAK_TRANSLATION",text:spokenTranslation.text,language:languages[spokenTranslation.language]||"ur",
       rate:settings.rate,speechId}).then(ack=>{if(!ack?.accepted)throw new Error("Unable to start audio.");})
       .catch(error=>{speechId=null;el("speech-note").textContent=error.message;});
+  });
+  let equationUtterance=null;
+  function stopEquationSpeech(){
+    const previous=equationUtterance;equationUtterance=null;
+    el("equation-speak").setAttribute("aria-pressed","false");
+    if(previous&&typeof speechSynthesis!=="undefined")speechSynthesis.cancel();
+  }
+  el("equation-speak").addEventListener("click",()=>{
+    if(equationUtterance){stopEquationSpeech();el("equation-note").textContent="Equation pronunciation stopped.";return;}
+    const result=globalThis.WordEquationSpeech?.toSpeech(contextSelection||selectedText);
+    if(!result?.ok){el("equation-note").textContent=result?.error||"Reload the extension and refresh this page to enable equation pronunciation.";fitPanel();return;}
+    if(typeof speechSynthesis==="undefined"||typeof SpeechSynthesisUtterance==="undefined"){
+      el("equation-note").textContent="Speech playback is not available in this browser.";fitPanel();return;
+    }
+    stopTranslationSpeech();speechSynthesis.cancel();
+    const utterance=new SpeechSynthesisUtterance(result.text);equationUtterance=utterance;
+    utterance.lang="en-US";utterance.rate=settings.rate;
+    const voices=typeof speechSynthesis.getVoices==="function"?speechSynthesis.getVoices():[];
+    const english=voices.find(voice=>/^en(?:-|$)/i.test(voice.lang)&&voice.default)||voices.find(voice=>/^en(?:-|$)/i.test(voice.lang));
+    if(english)utterance.voice=english;
+    el("equation-speak").setAttribute("aria-pressed","true");
+    el("equation-note").textContent="English reading: "+result.text;
+    const finish=()=>{if(equationUtterance===utterance){equationUtterance=null;el("equation-speak").setAttribute("aria-pressed","false");}};
+    utterance.onend=finish;
+    utterance.onerror=event=>{if(equationUtterance!==utterance)return;finish();el("equation-note").textContent=["canceled","interrupted"].includes(event.error)?"Equation pronunciation stopped.":"Could not play the English voice. Check your device speech settings.";};
+    try{speechSynthesis.speak(utterance);}catch{finish();el("equation-note").textContent="Speech playback could not start. Try again.";}
+    fitPanel();
   });
   el("speak").addEventListener("click",()=>{
     speechSynthesis.cancel();const utterance=new SpeechSynthesisUtterance(selectedText);

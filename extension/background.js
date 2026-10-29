@@ -4,7 +4,7 @@ const reviewStore = globalThis.WordReviewStore.create(chrome.storage.local);
 const contextStore = globalThis.WordContextStore.create(chrome.storage.local);
 const contextController = globalThis.WordContextController.create({chrome,store:contextStore,startJob,readJob:()=>readJob()});
 // Short acknowledgements; progress and answers arrive as separate messages.
-const BUILD = "0.3.3";
+const BUILD = "0.3.4";
 const JOB_KEY = "activeExplanationJob";
 const TIMEOUT_ALARM = "word-explanation-timeout";
 let starting = false;
