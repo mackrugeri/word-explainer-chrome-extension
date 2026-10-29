@@ -1,5 +1,5 @@
 (() => {
-  const BUILD="0.2.6";
+  const BUILD="0.3.3";
   const pronunciationAndTranslationOnly=typeof location!=="undefined"&&location.hostname==="chatgpt.com";
   let contextSelection="";
   const host = document.createElement("div");
@@ -88,7 +88,7 @@
       <div class="llm-choices" id="llm-choices" role="group" aria-label="Choose an AI provider" hidden><span>Ask which AI?</span><div class="provider-actions"><button class="action primary" id="explain" type="button">ChatGPT</button><button class="action primary" id="gemini" type="button">Gemini</button></div></div>
       <details class="result" id="result" hidden open><summary class="status"><span class="dot" aria-hidden="true"></span><span id="status">AI explanation</span></summary><div class="result-body" tabindex="0" aria-label="AI explanation"><div class="answer" id="answer" dir="auto"></div></div></details>
       <details class="result" id="translation-result" hidden open><summary class="status"><span class="dot" aria-hidden="true"></span><span id="translation-status">Translation</span></summary><div class="result-body" tabindex="0" aria-label="Translation"><button class="speaker" id="listen-translation" type="button" aria-label="Listen to translation" title="Listen to translation" hidden>🔊</button><div class="answer translation" id="translation-answer" dir="auto"></div><div class="speech-note" id="speech-note" role="status"></div></div></details>
-      <div class="footer"><span>Esc to close</span><span class="version">v0.2.6</span></div>
+      <div class="footer"><span>Esc to close</span><span class="version">v0.3.3</span></div>
     </section>`;
   document.documentElement.appendChild(host);
   let settings = { language:"en-US", rate:1, translationLanguage:"Urdu", translationFontSize:20 };

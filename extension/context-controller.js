@@ -40,7 +40,16 @@
             const job = await readJob();
             return { contexts: await store.list(), activeJob: job?.task === 'context-summary' ? { contextId: job.contextId, requestId: job.requestId } : null };
           }
-          case 'CONTEXT_CREATE': return { context: await store.create(message.name) };
+          case 'CONTEXT_CREATE': {
+            let draft=null;
+            if(message.draftId){
+              const drafts=(await chrome.storage.session.get('contextDraftsV1')).contextDraftsV1||{};
+              draft=drafts[message.draftId];
+              if(!draft||draft.createdAt<Date.now()-3600000)throw new Error('This selection expired. Select the paragraph again.');
+            }
+            return {context:await store.create(message.name,draft),captured:!!draft};
+          }
+          case 'CONTEXT_DELETE': return await store.delete(message.contextId,message.confirmation);
           case 'CONTEXT_DRAFT': {
             const drafts = (await chrome.storage.session.get('contextDraftsV1')).contextDraftsV1 || {};
             return { draft: drafts[message.draftId]?.createdAt > Date.now() - 3600000 ? drafts[message.draftId] : null };
@@ -51,6 +60,7 @@
             if (!draft || draft.createdAt < Date.now() - 3600000) throw new Error('This selection expired. Select the paragraph again.');
             return { context: await store.add(message.contextId, draft) };
           }
+          case 'CONTEXT_MOVE': return { context: await store.move(message.contextId,message.quoteId,message.position) };
           case 'CONTEXT_REMOVE': return { context: await store.remove(message.contextId, message.quoteId) };
           case 'CONTEXT_LINK': return { context: await store.link(message.contextId, message.from, message.to, message.note) };
           case 'CONTEXT_UNLINK': return { context: await store.unlink(message.contextId, message.linkId) };

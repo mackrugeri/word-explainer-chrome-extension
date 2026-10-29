@@ -4,7 +4,7 @@ const reviewStore = globalThis.WordReviewStore.create(chrome.storage.local);
 const contextStore = globalThis.WordContextStore.create(chrome.storage.local);
 const contextController = globalThis.WordContextController.create({chrome,store:contextStore,startJob,readJob:()=>readJob()});
 // Short acknowledgements; progress and answers arrive as separate messages.
-const BUILD = "0.2.6";
+const BUILD = "0.3.3";
 const JOB_KEY = "activeExplanationJob";
 const TIMEOUT_ALARM = "word-explanation-timeout";
 let starting = false;
@@ -28,7 +28,9 @@ async function finishJob(tabId, result) {
   try {
     const job = await readJob();
     if (!job || job.tabId !== tabId) return;
-    await chrome.storage.session.remove(JOB_KEY);
+    const cleanupPath=result.cleanupPath;
+    job.phase="cleanup";
+    await chrome.storage.session.set({[JOB_KEY]:job});
     await chrome.alarms.clear(TIMEOUT_ALARM);
     if(job.task === "context-summary" && result.ok) {
       try { await contextStore.saveSummary(job.contextId,job,result.text,job.provider); }
@@ -36,18 +38,22 @@ async function finishJob(tabId, result) {
     }
     let keepOpen = false;
     const cleanupPathPattern = job.provider === "gemini" ? /^\/app\/[a-zA-Z0-9-]+\/?$/ : /^\/c\/[a-zA-Z0-9-]+\/?$/;
-    if(result.ok && cleanupPathPattern.test(result.cleanupPath || "")) {
+    if(cleanupPathPattern.test(cleanupPath || "")) {
       let timer, cleanupError="The cleanup did not return a confirmation.";
       try {
         const cleanup = await Promise.race([
-          chrome.tabs.sendMessage(job.tabId,{type:job.provider.toUpperCase()+"_CLEANUP",path:result.cleanupPath,expectedPrompt:job.expectedPrompt},{frameId:0}),
+          chrome.tabs.sendMessage(job.tabId,{type:job.provider.toUpperCase()+"_CLEANUP",path:cleanupPath,expectedPrompt:job.expectedPrompt},{frameId:0}),
           new Promise(resolve=>{timer=setTimeout(()=>resolve({deleted:false,error:"History cleanup timed out."}),12000);})
         ]);
         if(!cleanup?.deleted){keepOpen=true;cleanupError=cleanup?.error||cleanupError;}
       }catch(error){keepOpen=true;cleanupError=error.message||cleanupError;}finally{clearTimeout(timer);}
       if(keepOpen)result.warning="Chat cleanup: "+cleanupError+" Answer retained; tab left open for manual cleanup.";
     }
+    if(job.task==="context-summary"&&result.ok){
+      try{await contextStore.setCleanup(job.contextId,job.revision,{state:keepOpen?"failed":cleanupPathPattern.test(cleanupPath||"")?"deleted":"not-needed",warning:result.warning||""});}catch{}
+    }
     delete result.cleanupPath;
+    await chrome.storage.session.remove(JOB_KEY);
     await routeJob(job,"EXPLANATION_RESULT",result);
     if(!keepOpen)await chrome.tabs.remove(job.tabId).catch(() => {});
   } finally { finishing.delete(tabId); }

@@ -5,7 +5,7 @@ const dir=new URL('../extension/', import.meta.url).pathname;
 const bg=(await Promise.all(['review-store.js','context-store.js','context-controller.js','background.js'].map(name=>fs.readFile(dir+name,'utf8')))).join('\n');
 const worker=await fs.readFile(dir+'chatgpt-worker.js','utf8');
 const content=await fs.readFile(dir+'content.js','utf8');
-for(const name of ['background.js','chatgpt-worker.js','chat-cleanup.js','gemini-worker.js','review-panel.js','review-store.js','context-store.js','context-controller.js','contexts.js','content.js','options.js','popup.js'])new vm.Script(await fs.readFile(dir+name,'utf8'));
+for(const name of ['background.js','chatgpt-worker.js','chat-cleanup.js','gemini-worker.js','review-panel.js','review-store.js','context-store.js','context-controller.js','context-graph.js','contexts.js','content.js','options.js','popup.js'])new vm.Script(await fs.readFile(dir+name,'utf8'));
 const flush=async()=>{for(let i=0;i<30;i++)await new Promise(setImmediate);};
 async function testBackground(restart=false,action="explain",translationLanguage="Urdu",provider="chatgpt"){
   let handler,alarmHandler,removedHandler;const store={},closed=[],notifications=[];let submittedPrompt="",createdUrl="";const prefix=provider.toUpperCase();
@@ -13,10 +13,10 @@ async function testBackground(restart=false,action="explain",translationLanguage
     storage:{session:{get:async()=>structuredClone(store),set:async value=>Object.assign(store,structuredClone(value)),remove:async key=>{delete store[key]}}},
     alarms:{create:async()=>{},clear:async()=>{},onAlarm:{addListener:f=>alarmHandler=f}},
     tabs:{onRemoved:{addListener:f=>removedHandler=f},create:async options=>{createdUrl=options.url;return{id:77}},remove:async id=>closed.push(id),sendMessage:async(id,msg)=>{
-      if(id===5){notifications.push(msg);return{received:true};}if(msg.type===prefix+'_START')submittedPrompt=msg.prompt;return msg.type===prefix+'_READY'?{ready:true,build:'0.2.6'}:{accepted:true};
+      if(id===5){notifications.push(msg);return{received:true};}if(msg.type===prefix+'_START')submittedPrompt=msg.prompt;return msg.type===prefix+'_READY'?{ready:true,build:'0.3.3'}:{accepted:true};
     }}};
   const boot=()=>vm.runInNewContext(bg,{chrome,console,setTimeout,clearTimeout,Date});boot();
-  let ack;const returned=handler({type:'EXPLAIN_SELECTION',text:'borrower',requestId:'r1',build:'0.2.6',action,translationLanguage,provider},{id:'test',tab:{id:5}},v=>ack=v);
+  let ack;const returned=handler({type:'EXPLAIN_SELECTION',text:'borrower',requestId:'r1',build:'0.3.3',action,translationLanguage,provider},{id:'test',tab:{id:5}},v=>ack=v);
   assert.equal(returned,undefined);assert.equal(ack.accepted,true);await flush();assert.equal(store.activeExplanationJob.tabId,77);if(action==='translate'){assert.ok(submittedPrompt.startsWith('Translate'));assert.ok(submittedPrompt.includes('into '+translationLanguage));assert.ok(submittedPrompt.includes('only the translation'));}else assert.ok(submittedPrompt.startsWith('Explain'));
   assert.equal(createdUrl,provider==="gemini"?"https://gemini.google.com/app":"https://chatgpt.com/");
   if(restart)boot();
@@ -160,7 +160,7 @@ async function testDirectGoogle(language='Urdu',failure=null){
   };
   vm.runInNewContext(bg,{chrome,fetch,URLSearchParams,AbortController,TypeError,console,setTimeout,clearTimeout,Date});
   let ack;const returned=handler({type:'TRANSLATE_SELECTION',text:'Hello & world?',translationLanguage:language,
-    requestId:'translation-1',build:'0.2.6',action:'translate'},{id:'test',tab:{id:5}},v=>ack=v);
+    requestId:'translation-1',build:'0.3.3',action:'translate'},{id:'test',tab:{id:5}},v=>ack=v);
   assert.equal(returned,undefined);assert.equal(ack.accepted,true);await flush();
   assert.equal(fetchCount,1);assert.equal(tabCount,0);assert.equal(delivered.length,1);
   assert.equal(delivered[0].type,'EXPLANATION_RESULT');assert.equal(delivered[0].requestId,'translation-1');
@@ -332,7 +332,7 @@ async function testContextBackground(provider='gemini',cleanupOutcome=null){
     commands:{onCommand:{addListener:()=>{}}},alarms:{create:async()=>{},clear:async()=>{},onAlarm:{addListener:()=>{}}},
     tabs:{create:async spec=>{opened.push(spec);return{id:77}},remove:async tabId=>closed.push(tabId),onRemoved:{addListener:()=>{}},sendMessage:async(id,msg)=>{
       if(msg.type.endsWith('_CLEANUP')){assert.ok(saved.wordContextsV1[0].summary,'Summary must be saved before chat deletion');return{deleted:cleanupOutcome==='success',error:cleanupOutcome==='failure'?'The generated chat was not found in Recents.':undefined}}
-      if(msg.type.endsWith('_READY'))return{ready:true,build:'0.2.6'};
+      if(msg.type.endsWith('_READY'))return{ready:true,build:'0.3.3'};
       if(msg.type.endsWith('_START')){preparedPrompt=msg;return{accepted:true}}return{};
     }}};
   let count=0;
@@ -348,6 +348,10 @@ async function testContextBackground(provider='gemini',cleanupOutcome=null){
   await request({type:'CONTEXT_ADD',contextId,draftId});
   await request({type:'OPEN_CONTEXTS',text:'Second paragraph',title:'Source B'},{...source,tab:{id:6,url:'https://example.org/b'}});
   const secondDraft=new URL(opened.at(-1).url).searchParams.get('draft');await request({type:'CONTEXT_ADD',contextId,draftId:secondDraft});
+  const listing=await request({type:'CONTEXT_LIST'});
+  const quoteId=listing.response.contexts[0].quotes[0].id;
+  const moved=await request({type:'CONTEXT_MOVE',contextId,quoteId,position:{x:120,y:180}});
+  assert.equal(moved.response.context.layout[quoteId].x,120);
   const summary=await request({type:'CONTEXT_SUMMARIZE',contextId,provider,requestId:'summary-1'});
   assert.equal(summary.returned,undefined);assert.equal(summary.response.accepted,true,'Summary is acknowledged before model generation');
   assert.equal(preparedPrompt.task,'context-summary');assert.ok(preparedPrompt.prompt.includes('First paragraph'));assert.ok(preparedPrompt.prompt.includes('Second paragraph'));
@@ -356,6 +360,13 @@ async function testContextBackground(provider='gemini',cleanupOutcome=null){
   assert.equal(saved.wordContextsV1[0].summary.text,'The two paragraphs connect [1][2].');assert.equal(saved.wordContextsV1[0].summary.provider,provider);
   assert.equal(broadcasts.at(-1).type,'CONTEXT_SUMMARY_RESULT');assert.equal(broadcasts.at(-1).ok,true);assert.deepEqual(closed,cleanupOutcome==='failure'?[]:[77]);if(cleanupOutcome==='failure')assert.ok(broadcasts.at(-1).warning.includes('left open'));
   assert.equal(session.activeExplanationJob,undefined);
+  const firstCapture=await request({type:'CONTEXT_CREATE',name:'Initial selection',draftId:secondDraft});
+  assert.equal(firstCapture.response.captured,true);assert.equal(firstCapture.response.context.quotes.length,1);
+  assert.equal(firstCapture.response.context.quotes[0].url,'https://example.org/b');
+  const refused=await request({type:'CONTEXT_DELETE',contextId:firstCapture.response.context.id,confirmation:'wrong'});
+  assert.equal(refused.response.ok,false);
+  const deleted=await request({type:'CONTEXT_DELETE',contextId:firstCapture.response.context.id,confirmation:'Initial selection'});
+  assert.equal(deleted.response.ok,true);assert.equal((await request({type:'CONTEXT_LIST'})).response.contexts.length,1);
 }
 await testContextBackground('gemini');await testContextBackground('chatgpt');
 console.log('PASS: named cross-page contexts, concurrent capture, source URLs, deduplication, explicit links, reload persistence, stale summaries, reference snapshots, length limits, trusted-UI boundary, both providers, summary restart recovery, and owned-tab cleanup.');
@@ -401,3 +412,7 @@ await testExactChatCleanup('with-skip-link');await testExactChatCleanup('with-sk
 await testExactChatCleanup('pointer-menu');
 
 await testExactChatCleanup('gemini-a11y-label','gemini');
+
+await import('./test-context-graph.mjs');
+
+await import('./test-summary-cleanup-ui.mjs');
