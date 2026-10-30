@@ -20,3 +20,9 @@ contextsButton.addEventListener("click",async()=>{
   catch{popupStatus.textContent="Could not open contexts. Reload the extension and retry.";popupStatus.hidden=false;}
   finally{contextsButton.disabled=false;}
 });
+
+const pdfReaderButton=document.getElementById("pdf-reader");
+pdfReaderButton.addEventListener("click",async()=>{
+  try{await chrome.runtime.sendMessage({type:"OPEN_PDF_READER"});}
+  catch{popupStatus.textContent="Could not open PDF reader. Reload the extension and retry.";popupStatus.hidden=false;}
+});

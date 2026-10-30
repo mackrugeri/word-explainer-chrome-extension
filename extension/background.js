@@ -4,7 +4,7 @@ const reviewStore = globalThis.WordReviewStore.create(chrome.storage.local);
 const contextStore = globalThis.WordContextStore.create(chrome.storage.local);
 const contextController = globalThis.WordContextController.create({chrome,store:contextStore,startJob,readJob:()=>readJob()});
 // Short acknowledgements; progress and answers arrive as separate messages.
-const BUILD = "0.3.4";
+const BUILD = "0.4.0";
 const JOB_KEY = "activeExplanationJob";
 const TIMEOUT_ALARM = "word-explanation-timeout";
 let starting = false;
@@ -12,8 +12,14 @@ const finishing = new Set();
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const readJob = async () => (await chrome.storage.session.get(JOB_KEY))[JOB_KEY];
 
+async function sendToPage(tabId,message,tab=null){
+  if(!tab&&typeof chrome.tabs.get==="function")tab=await chrome.tabs.get(tabId);
+  if(tab?.url&&typeof chrome.runtime.getURL==="function"&&tab.url.split(/[?#]/)[0]===chrome.runtime.getURL("pdf-reader.html"))
+    return chrome.runtime.sendMessage({...message,targetTabId:tabId});
+  return chrome.tabs.sendMessage(tabId,message,{frameId:0});
+}
 async function notify(tabId, message) {
-  try { await chrome.tabs.sendMessage(tabId, message, { frameId: 0 }); }
+  try { await sendToPage(tabId, message); }
   catch { /* The source page may have navigated or been closed. */ }
 }
 async function routeJob(job, type, data) {
@@ -157,9 +163,18 @@ chrome.commands.onCommand.addListener(async (command, tab) => {
     if (!tab?.id) [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab?.id) return;
     // Unlike general notifications, a shortcut must not swallow delivery errors.
-    const reply = await chrome.tabs.sendMessage(tab.id, { type: "SHOW_SELECTION_MENU", build: BUILD }, { frameId: 0 });
+    const reply = await sendToPage(tab.id, { type: "SHOW_SELECTION_MENU", build: BUILD },tab);
     if (!reply?.ok || reply.build !== BUILD) {
       await shortcutFeedback(tab.id, reply?.error || "Refresh this web page after updating Word Explainer.");
+    } else if (!reply.shown && reply.courseFramesAllowed) {
+      let selected;
+      try{selected=await chrome.tabs.sendMessage(tab.id,{type:"COLLECT_COURSE_SELECTION"});}catch{}
+      let valid=false;
+      try{const url=new URL(selected?.sourceUrl);valid=url.origin==="https://storage.googleapis.com"&&url.pathname.startsWith("/cloud-training/");}catch{}
+      if(selected?.ok&&valid){
+        const shown=await chrome.tabs.sendMessage(tab.id,{type:"SHOW_COURSE_SELECTION_MENU",build:BUILD,selection:selected},{frameId:0});
+        await shortcutFeedback(tab.id,shown?.shown?"":"The lesson selection could not be displayed. Refresh the lesson and retry.");
+      }else await shortcutFeedback(tab.id,selected?.error||"Select text inside the lesson, then press the shortcut. Refresh this page after updating the extension.");
     } else if (!reply.shown) {
       await shortcutFeedback(tab.id, "Select text in the web page and press the shortcut again. Protected pages and embedded frames may be unsupported.");
     } else await shortcutFeedback(tab.id);
@@ -177,6 +192,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return;
   }
   if (message.type === "OPEN_CONTEXTS" || message.type?.startsWith("CONTEXT_")) return contextController.handle(message,sender,sendResponse);
+  if(message.type==="OPEN_PDF_READER"){
+    sendResponse({accepted:true});chrome.tabs.create({url:chrome.runtime.getURL("pdf-reader.html"),active:true}).catch(()=>{});return;
+  }
   if (!sender.tab) return;
   if (["REVIEW_LIST", "REVIEW_SAVE", "REVIEW_CLEAR"].includes(message.type)) {
     let url;

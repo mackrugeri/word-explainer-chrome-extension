@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Word Explainer",
-  "version": "0.3.4",
+  "version": "0.4.0",
   "description": "Pronounce, translate, or ask ChatGPT or Gemini about selected text.",
   "permissions": [
     "storage",
@@ -50,6 +50,16 @@
         "chat-cleanup.js",
         "gemini-worker.js"
       ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://storage.googleapis.com/cloud-training/*"
+      ],
+      "js": [
+        "course-selection.js"
+      ],
+      "all_frames": true,
       "run_at": "document_idle"
     }
   ],

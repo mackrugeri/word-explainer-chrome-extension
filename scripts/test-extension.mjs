@@ -13,10 +13,10 @@ async function testBackground(restart=false,action="explain",translationLanguage
     storage:{session:{get:async()=>structuredClone(store),set:async value=>Object.assign(store,structuredClone(value)),remove:async key=>{delete store[key]}}},
     alarms:{create:async()=>{},clear:async()=>{},onAlarm:{addListener:f=>alarmHandler=f}},
     tabs:{onRemoved:{addListener:f=>removedHandler=f},create:async options=>{createdUrl=options.url;return{id:77}},remove:async id=>closed.push(id),sendMessage:async(id,msg)=>{
-      if(id===5){notifications.push(msg);return{received:true};}if(msg.type===prefix+'_START')submittedPrompt=msg.prompt;return msg.type===prefix+'_READY'?{ready:true,build:'0.3.4'}:{accepted:true};
+      if(id===5){notifications.push(msg);return{received:true};}if(msg.type===prefix+'_START')submittedPrompt=msg.prompt;return msg.type===prefix+'_READY'?{ready:true,build:'0.4.0'}:{accepted:true};
     }}};
   const boot=()=>vm.runInNewContext(bg,{chrome,console,setTimeout,clearTimeout,Date});boot();
-  let ack;const returned=handler({type:'EXPLAIN_SELECTION',text:'borrower',requestId:'r1',build:'0.3.4',action,translationLanguage,provider},{id:'test',tab:{id:5}},v=>ack=v);
+  let ack;const returned=handler({type:'EXPLAIN_SELECTION',text:'borrower',requestId:'r1',build:'0.4.0',action,translationLanguage,provider},{id:'test',tab:{id:5}},v=>ack=v);
   assert.equal(returned,undefined);assert.equal(ack.accepted,true);await flush();assert.equal(store.activeExplanationJob.tabId,77);if(action==='translate'){assert.ok(submittedPrompt.startsWith('Translate'));assert.ok(submittedPrompt.includes('into '+translationLanguage));assert.ok(submittedPrompt.includes('only the translation'));}else assert.ok(submittedPrompt.startsWith('Explain'));
   assert.equal(createdUrl,provider==="gemini"?"https://gemini.google.com/app":"https://chatgpt.com/");
   if(restart)boot();
@@ -160,7 +160,7 @@ async function testDirectGoogle(language='Urdu',failure=null){
   };
   vm.runInNewContext(bg,{chrome,fetch,URLSearchParams,AbortController,TypeError,console,setTimeout,clearTimeout,Date});
   let ack;const returned=handler({type:'TRANSLATE_SELECTION',text:'Hello & world?',translationLanguage:language,
-    requestId:'translation-1',build:'0.3.4',action:'translate'},{id:'test',tab:{id:5}},v=>ack=v);
+    requestId:'translation-1',build:'0.4.0',action:'translate'},{id:'test',tab:{id:5}},v=>ack=v);
   assert.equal(returned,undefined);assert.equal(ack.accepted,true);await flush();
   assert.equal(fetchCount,1);assert.equal(tabCount,0);assert.equal(delivered.length,1);
   assert.equal(delivered[0].type,'EXPLANATION_RESULT');assert.equal(delivered[0].requestId,'translation-1');
@@ -209,7 +209,7 @@ async function testToolbarPopupLaunch(mode){
   let click,opened=0;
   const button={disabled:false,addEventListener:(event,fn)=>{assert.equal(event,'click');click=fn;}};
   const status={hidden:true,textContent:''};
-  const document={getElementById:id=>id==='settings'?button:id==='contexts'?{addEventListener:()=>{}}:status};
+  const document={getElementById:id=>id==='settings'?button:['contexts','pdf-reader'].includes(id)?{addEventListener:()=>{}}:status};
   const chrome=mode==='missing-context'?{}:{runtime:{openOptionsPage:async()=>{opened++;if(mode==='failure')throw Error('Simulated launch failure');}}};
   vm.runInNewContext(popupScript,{document,chrome});await click();
   assert.equal(button.disabled,false,'Settings control must recover after completion');
@@ -332,7 +332,7 @@ async function testContextBackground(provider='gemini',cleanupOutcome=null){
     commands:{onCommand:{addListener:()=>{}}},alarms:{create:async()=>{},clear:async()=>{},onAlarm:{addListener:()=>{}}},
     tabs:{create:async spec=>{opened.push(spec);return{id:77}},remove:async tabId=>closed.push(tabId),onRemoved:{addListener:()=>{}},sendMessage:async(id,msg)=>{
       if(msg.type.endsWith('_CLEANUP')){assert.ok(saved.wordContextsV1[0].summary,'Summary must be saved before chat deletion');return{deleted:cleanupOutcome==='success',error:cleanupOutcome==='failure'?'The generated chat was not found in Recents.':undefined}}
-      if(msg.type.endsWith('_READY'))return{ready:true,build:'0.3.4'};
+      if(msg.type.endsWith('_READY'))return{ready:true,build:'0.4.0'};
       if(msg.type.endsWith('_START')){preparedPrompt=msg;return{accepted:true}}return{};
     }}};
   let count=0;
@@ -416,3 +416,5 @@ await testExactChatCleanup('gemini-a11y-label','gemini');
 await import('./test-context-graph.mjs');
 
 await import('./test-summary-cleanup-ui.mjs');
+
+await import('./test-selection-support.mjs');
