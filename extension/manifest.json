@@ -24,6 +24,7 @@
       ],
       "js": [
         "review-panel.js",
+        "rich-response.js",
         "equation-speech.js",
         "highlighter.js",
         "notes-anchor.js",
@@ -41,6 +42,7 @@
       ],
       "js": [
         "chat-cleanup.js",
+        "rich-response.js",
         "chatgpt-worker.js",
         "equation-speech.js",
         "highlighter.js",

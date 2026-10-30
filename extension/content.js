@@ -94,12 +94,13 @@
       @media(prefers-color-scheme:dark) { .card { --we-bg:#18231f;--we-text:#edf4ef;--we-muted:#a5b9ae;
         --we-line:#35463b;--we-soft:#202f27;--we-accent:#a4d7b8;--we-on-accent:#142b1d;--we-tint:#2a4031;
         --we-error:#f2a99e;color-scheme:dark; } }
+      ${globalThis.WordRichResponse?.css||""}
     </style>
     <section class="card" aria-label="Word Explainer">
       <div class="header" id="drag-handle" title="Drag to move"><span class="mark" aria-hidden="true">W</span><div class="brand-stack"><span class="brand">Word Explainer</span><span class="tagline">A little clarity, right here.</span></div><button class="settings" id="open-settings" type="button" aria-label="Settings" title="Settings">⚙</button><button class="close" id="close" type="button" aria-label="Close">×</button></div>
       <div class="selection-label">Selected text</div>
       <div class="word" id="word" dir="auto"></div>
-      <div class="actions" id="actions"><button class="action" id="speak" type="button">Listen</button><button class="action" id="equation-speak" type="button" aria-pressed="false">Read Equation</button><button class="action" id="equation-explain" type="button">Explain equation</button><button class="action primary" id="ask-llm" type="button" aria-expanded="false" aria-controls="llm-choices">Ask to LLM</button><button class="action" id="translate" type="button">Translate</button><button class="action" id="notes-taken" type="button">Notes Taken</button><button class="action" id="summarize" type="button">Summarize</button></div>
+      <div class="actions" id="actions"><button class="action" id="speak" type="button">Listen</button><button class="action" id="equation-speak" type="button" aria-pressed="false">Equation Pronunciation</button><button class="action primary" id="ask-llm" type="button" aria-expanded="false" aria-controls="llm-choices">Ask to LLM</button><button class="action" id="translate" type="button">Translate</button><button class="action" id="notes-taken" type="button">Notes Taken</button><button class="action" id="paper-explanation" type="button">Explain equation with respect to research paper</button><button class="action" id="summarize" type="button">Summarize</button></div>
       <div class="highlights" role="group" aria-label="Highlight selected text"><div class="highlight-header"><span>Highlight color</span><button class="highlight-remove" id="remove-highlight" type="button" title="Remove highlights overlapping the selected text">Remove</button></div><div class="highlight-colors" id="highlight-colors"></div><div class="highlight-note" id="highlight-note" role="status" aria-live="polite">Saved locally on this page</div></div>
       <div id="equation-note" class="equation-note" role="status" aria-live="polite"></div>
       <button class="context-action" id="cross-context" type="button">Cross-page context ↗</button>
@@ -117,9 +118,10 @@
     for(const key of Object.keys(settings))if(changes[key])settings[key]=changes[key].newValue;
     applyTranslationSize();
   });
+  let paperSelection="",paperSourceUrl="";
   let selectedText="", activeRequest=null, selectedAction="explain", selectedProvider="chatgpt";
-  const answerKey=(text,action,language,provider=selectedProvider)=>`${action}|${action==="translate"?language:provider}|${text}`;
-  const setBusy=value=>{el("equation-explain").disabled=value;el("summarize").disabled=value;el("ask-llm").disabled=value;el("explain").disabled=value;el("gemini").disabled=value;el("translate").disabled=value;};
+  const answerKey=(text,action,language,provider=selectedProvider)=>`${action}|${action==="paper-explanation"?paperSourceUrl+"|":""}${action==="translate"?language:provider}|${text}`;
+  const setBusy=value=>{el("paper-explanation").disabled=value;el("summarize").disabled=value;el("ask-llm").disabled=value;el("explain").disabled=value;el("gemini").disabled=value;el("translate").disabled=value;};
   async function send(message){
     try {
       if(!chrome.runtime?.id)throw new Error("Extension context invalidated");
@@ -133,7 +135,7 @@
   const pending = new Map();
   const answers = new Map();
   const el=(id)=>root.getElementById(id);
-  if(pronunciationAndTranslationOnly){el("equation-explain").hidden=true;el("cross-context").hidden=true;el("ask-llm").hidden=true;el("summarize").hidden=true;el("actions").className="actions limited";}
+  if(pronunciationAndTranslationOnly){el("paper-explanation").hidden=true;el("cross-context").hidden=true;el("ask-llm").hidden=true;el("summarize").hidden=true;el("actions").className="actions limited";}
   function updateHighlightColor(){
     const active=highlighter?.activeColor(highlightRange);
     for(const button of el("highlight-colors").children||[]){
@@ -190,7 +192,9 @@
     // Focus is not the selection: a search field can keep focus while a
     // result snippet elsewhere on the page has a valid text range.
     const selection=embedded?null:window.getSelection();
-    contextSelection=embedded?embedded.text:String(selection||"").trim();
+    paperSelection=embedded?embedded.text:String(selection||"");
+    paperSourceUrl=embedded?embedded.sourceUrl:location.href;
+    contextSelection=paperSelection.trim();
     selectedText=contextSelection;
     if(!selectedText||(!embedded&&!selection.rangeCount))return false;
     let rect;
@@ -213,7 +217,7 @@
     el("word").textContent=selectedText;
     el("result").hidden=true;el("summary-result").hidden=true;el("translation-result").hidden=true;spokenTranslation=null;
     const saved=[...answers.entries()].filter(([key])=>key.endsWith(`|${selectedText}`)).map(([,value])=>value);
-    for(const result of saved)if(result.action!=="translate"||result.targetLanguage===settings.translationLanguage)renderResult(result);
+    for(const result of saved)if((result.action!=="translate"||result.targetLanguage===settings.translationLanguage)&&(result.action!=="paper-explanation"||result.paperSourceUrl===paperSourceUrl))renderResult(result);
     const running=[...pending.entries()].find(([,job])=>job.text===selectedText);
     activeRequest=running?.[0]||null;
     setBusy(!!running);
@@ -233,14 +237,15 @@
     return {section:el(translation?"translation-result":"result"),status:el(translation?"translation-status":"status"),answer:el(translation?"translation-answer":"answer")};
   }
   function expandSection(action){
-    el("summary-result").open=action==="summarize";el("result").open=action==="explain"||action==="equation";el("translation-result").open=action==="translate";
+    el("summary-result").open=action==="summarize";el("result").open=action==="explain"||action==="paper-explanation";el("translation-result").open=action==="translate";
   }
   function renderResult(result){
     const view=resultView(result.action);
     view.section.hidden=false;view.section.className=result.ok?"result":"result error";
     view.status.textContent=result.ok?result.label:`${result.action==="translate"?"Translation":result.action==="summarize"?"Summary":"AI explanation"} · Unable to finish`;
     if(result.warning)view.status.textContent+=" · "+result.warning;
-    view.answer.textContent=result.ok?result.text:(result.error||"No answer received.");
+    if(globalThis.WordRichResponse&&result.ok&&result.action!=="translate")WordRichResponse.render(view.answer,result.rich,result.text);
+    else {view.answer.textContent=result.ok?result.text:(result.error||"No answer received.");view.answer.classList?.remove("rich-response");}
     if(result.action==="translate"){
       stopTranslationSpeech();
       spokenTranslation=result.ok?{text:result.text,language:result.targetLanguage}:null;
@@ -253,7 +258,7 @@
     const job=pending.get(requestId);
     if(!job)return;
     clearTimeout(job.timer);pending.delete(requestId);
-    result={...result,action:job.action,provider:job.provider,targetLanguage:job.targetLanguage,label:job.action==="translate"?`Google Translate · ${job.targetLanguage}`:job.action==="summarize"?`Summary · ${job.provider==="gemini"?"Gemini":"ChatGPT"}`:`${job.provider==="gemini"?"Gemini":"ChatGPT"} · ${job.action==="equation"?"equation in context":"explanation"}`};
+    result={...result,paperSourceUrl:job.paperSourceUrl,action:job.action,provider:job.provider,targetLanguage:job.targetLanguage,label:job.action==="translate"?`Google Translate · ${job.targetLanguage}`:job.action==="summarize"?`Summary · ${job.provider==="gemini"?"Gemini":"ChatGPT"}`:`${job.provider==="gemini"?"Gemini":"ChatGPT"} · explanation`};
     if(result.ok&&job.action!=="summarize")globalThis.WordReviewPanel?.record({pageUrl:job.pageUrl,text:job.text,action:job.action,
       provider:job.provider,language:job.targetLanguage,answer:result.text});
     answers.set(job.key,result);
@@ -287,7 +292,7 @@
       job.stage=job.action==="summarize"?`Summary · ${message.stage||"Receiving…"}`:message.stage;
       if(message.requestId===activeRequest&&selectedText===job.text){
         const view=resultView(job.action);view.status.textContent=job.stage;
-        if(typeof message.text==="string"){view.answer.textContent=message.text;fitPanel();}
+        if(typeof message.text==="string"){if(globalThis.WordRichResponse&&job.action!=="translate")WordRichResponse.render(view.answer,message.rich,message.text);else view.answer.textContent=message.text;fitPanel();}
       }
       sendResponse({received:true});
     }
@@ -330,7 +335,7 @@
   }
   el("equation-speak").addEventListener("click",()=>{
     if(equationUtterance){stopEquationSpeech();el("equation-note").textContent="Equation pronunciation stopped.";return;}
-    let result;try{result=globalThis.WordEquationSpeech?.toSpeech(globalThis.WordEquationSpeech.selectionSource(highlightRange,contextSelection||selectedText));}catch(error){result={ok:false,error:error.message};}
+    const result=globalThis.WordEquationSpeech?.toSpeech(contextSelection||selectedText);
     if(!result?.ok){el("equation-note").textContent=result?.error||"Reload the extension and refresh this page to enable equation pronunciation.";fitPanel();return;}
     if(typeof speechSynthesis==="undefined"||typeof SpeechSynthesisUtterance==="undefined"){
       el("equation-note").textContent="Speech playback is not available in this browser.";fitPanel();return;
@@ -357,17 +362,12 @@
     if(pronunciationAndTranslationOnly&&action!=="translate")return;
     el("llm-choices").hidden=true;el("ask-llm").setAttribute("aria-expanded","false");
     if(action==="summarize"&&selectedText.length>8000){renderResult({action,ok:false,error:"Select a paragraph of up to 8,000 characters, then choose Summarize again."});expandSection(action);return;}
-    let equationData;
-    if(action==="equation"){
-      try{equationData=WordEquationSpeech.capture(highlightRange,contextSelection||selectedText);WordEquationSpeech.prompt(equationData);}
-      catch(error){el("equation-note").textContent=error.message;fitPanel();return;}
-    }
     selectedProvider=provider;
     selectedAction=action;
     if(action==="translate"){stopTranslationSpeech();spokenTranslation=null;el("listen-translation").hidden=true;el("speech-note").textContent="";}
     const requestId=crypto.randomUUID?.()||`${Date.now()}-${Math.random().toString(36).slice(2)}`;
     activeRequest=requestId;
-    const job={text:selectedText,action,provider,pageUrl:typeof location!=="undefined"?location.href.split("#")[0]:"",targetLanguage:settings.translationLanguage,
+    const job={text:selectedText,action,provider,paperSourceUrl:action==="paper-explanation"?paperSourceUrl:undefined,pageUrl:typeof location!=="undefined"?location.href.split("#")[0]:"",targetLanguage:settings.translationLanguage,
       key:answerKey(selectedText,action,settings.translationLanguage),
       stage:action==="translate"?`Translating into ${settings.translationLanguage} with Google…`:`${action==="summarize"?"Summary · ":""}Opening ${provider==="gemini"?"Gemini":"ChatGPT"}…`,timer:null};
     pending.set(requestId,job);
@@ -378,7 +378,7 @@
       complete(requestId,{ok:false,error:"The request timed out. Check the selected AI website and retry."});
       send({type:"CANCEL_EXPLANATION",requestId}).catch(()=>{});
     },155000);
-    send({equationData,type:action==="equation"?"EXPLAIN_EQUATION":action==="translate"?"TRANSLATE_SELECTION":action==="summarize"?"SUMMARIZE_SELECTION":"EXPLAIN_SELECTION",text:action==="summarize"?selectedText:selectedText.slice(0,1000),requestId,build:BUILD,action,provider,translationLanguage:job.targetLanguage}).then(ack=>{
+    send({type:action==="paper-explanation"?"EXPLAIN_PAPER_SELECTION":action==="translate"?"TRANSLATE_SELECTION":action==="summarize"?"SUMMARIZE_SELECTION":"EXPLAIN_SELECTION",text:action==="paper-explanation"?paperSelection:action==="summarize"?selectedText:selectedText.slice(0,1000),sourceUrl:action==="paper-explanation"?paperSourceUrl:undefined,requestId,build:BUILD,action,provider,translationLanguage:job.targetLanguage}).then(ack=>{
       if(!ack?.accepted)complete(requestId,{ok:false,error:ack?.error||"The extension could not start the request."});
     }).catch(error=>complete(requestId,{ok:false,error:error.message||"Connection lost. Refresh this page."}));
   }
@@ -395,7 +395,7 @@
     const choices=el("llm-choices");choices.hidden=!choices.hidden;
     el("ask-llm").setAttribute("aria-expanded",String(!choices.hidden));fitPanel();
   });
-  el("equation-explain").addEventListener("click",()=>requestAction("equation","chatgpt"));
+  el("paper-explanation").addEventListener("click",()=>requestAction("paper-explanation","chatgpt"));
   el("summarize").addEventListener("click",()=>requestAction("summarize","chatgpt"));
   el("explain").addEventListener("click",()=>requestAction("explain"));
   el("gemini").addEventListener("click",()=>requestAction("explain","gemini"));

@@ -16,8 +16,17 @@
 <fieldset><legend>Explanations</legend><label>Explanation detail<select id="detail" aria-describedby="detail-help"><option value="short">Short</option><option value="detailed">Detailed</option></select></label><small id="detail-help">Current ChatGPT replies are kept short regardless of this preference.</small></fieldset>
 <div class="save-row"><button type="submit">Save settings</button><p id="status" role="status" aria-live="polite"></p></div>
 </form>
+<section class="storage-section" aria-labelledby="storage-title">
+<div class="storage-heading"><div><p class="eyebrow">Saved on this device</p><h2 id="storage-title">Website storage</h2></div><button type="button" id="storage-refresh" class="secondary">Refresh list</button></div>
+<p class="section-description">See what Word Explainer has saved and remove data you no longer need. This manages extension storage, not website cookies or Chrome’s memory.</p>
+<p id="storage-total" class="storage-total">Loading storage…</p><progress id="storage-meter" max="100" value="0" aria-label="Extension local storage used"></progress>
+<p id="storage-status" role="status" aria-live="polite"></p><div id="storage-sites"></div>
+<details class="storage-shared"><summary>Shared research contexts <span id="storage-context-count"></span></summary><p>Contexts can contain excerpts from several websites. Removing a website’s data here keeps its shared contexts intact. Delete a context by its exact name in Cross-page contexts.</p><a href="contexts.html" target="_blank" rel="noopener">Manage shared contexts ↗</a><ul id="storage-contexts"></ul></details>
+<details class="storage-shared"><summary>Settings and other managed data</summary><p id="storage-settings"></p><ul id="storage-other"></ul><p>Processing jobs, PDF selections and export snapshots use temporary session storage and are not cleared here. Active pages can save new data after cleanup.</p></details>
+</section>
 <aside class="shortcut-guide"><h2>One shortcut. A little more clarity.</h2><p>Select text on a web page, then open the panel:</p><div class="shortcut-row"><span>Mac <kbd>⌘</kbd> <kbd>⇧</kbd> <kbd>Y</kbd></span><span>Windows / Linux <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>Y</kbd></span></div><p class="field-note">Change your shortcut at <code>chrome://extensions/shortcuts</code>.</p></aside>
 <footer>Google Translate for translations. ChatGPT for explanations.</footer>
 </main>
 <script src="options.js"></script>
+<script src="storage-options.js"></script>
 </body></html>

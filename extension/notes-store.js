@@ -19,6 +19,7 @@
         await storage.set({[KEY]:[...records.filter(n=>n.id!==note.id),note].slice(-400)});return note;
       }),
       remove:(url,id)=>run(async()=>{const canonical=page(url);await storage.set({[KEY]:(await read()).filter(n=>!(n.url===canonical&&n.id===id))});}),
+      clearSite:url=>run(async()=>{const origin=new URL(page(url)).origin;await storage.set({[KEY]:(await read()).filter(n=>{try{return new URL(n.url).origin!==origin;}catch{return true;}})});}),
       merge:async function(url,items){const notes=await this.list(url);const result=items.map(i=>({...i,notes:[...i.notes]}));for(const n of notes){let item=result.find(i=>i.text===n.anchor.exact);if(!item){item={text:n.anchor.exact,notes:[]};result.push(item);}item.notes.push({action:'personal',summary:n.body,sourceUrl:n.url,updatedAt:n.updatedAt,id:n.id});}return result;}
     };
   }

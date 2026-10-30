@@ -38,15 +38,17 @@
     let previous = "", stableSince = Date.now();
     return until(() => {
       // Guest layouts can leave an empty trailing assistant placeholder.
-      const text = assistantBodies().map(node => (node.innerText || node.textContent || "").trim())
-        .filter(Boolean).at(-1) || "";
+      const body = assistantBodies().filter(node => (node.innerText || node.textContent || "").trim()).at(-1);
+      const text = (body?.innerText || body?.textContent || "").trim();
+      const rich = globalThis.WordRichResponse?.capture(body,limit);
+      const signature = text + (rich ? JSON.stringify(rich) : "");
       if (/^(this response couldn.t load|something went wrong|unable to load)/i.test(text))
         throw new Error("ChatGPT could not load its response. Check ChatGPT directly, then retry.");
-      if (text !== previous) {
-        previous = text; stableSince = Date.now();
-        if (text) { progress("Receiving the explanation…"); emit({ type: "CHATGPT_PARTIAL", text }); }
+      if (signature !== previous) {
+        previous = signature; stableSince = Date.now();
+        if (text) { progress("Receiving the explanation…"); emit({ type: "CHATGPT_PARTIAL", text:text.slice(0,limit), ...(rich?{rich}:{}) }); }
       }
-      if (text && !stopButton() && Date.now() - stableSince >= 2500) return text.slice(0, limit);
+      if (text && !stopButton() && Date.now() - stableSince >= 2500) return {text:text.slice(0,limit),...(rich?{rich}:{})};
       return null;
     }, 60000, "No readable answer arrived. ChatGPT may need sign-in, verification, or a foreground tab.");
   }
@@ -97,8 +99,8 @@
         if (!resume) await prepareAndSend(prompt);
         else progress("Reconnected · reading ChatGPT's answer…");
         cleanupEligible = true;
-        const text = await readAnswer(task === "context-summary" ? 12000 : 2000);
-        await emit({ type: "CHATGPT_RESULT", ok: true, text, cleanupPath: cleanupEligible ? location.pathname : undefined });
+        const answer = await readAnswer(["context-summary","paper-explanation"].includes(task) ? 12000 : 2000);
+        await emit({ type: "CHATGPT_RESULT", ok: true, ...answer, cleanupPath: cleanupEligible ? location.pathname : undefined });
       } catch (error) { await emit({ type: "CHATGPT_RESULT", ok: false, error: error.message }); }
       finally { clearInterval(heartbeat); heartbeat = null; busy = false; }
     })();
@@ -115,7 +117,7 @@
     }
     if (message.type === "CHATGPT_READY") { sendResponse({ ready: true, build: BUILD }); return; }
     if (message.type === "CHATGPT_START") {
-      if (busy || typeof message.prompt !== "string" || message.prompt.length > (["context-summary", "equation"].includes(message.task) ? 28000 : message.task === "paragraph-summary" ? 9000 : 2500)) {
+      if (busy || typeof message.prompt !== "string" || message.prompt.length > (message.task === "paper-explanation" ? 80000 : message.task === "context-summary" ? 28000 : message.task === "paragraph-summary" ? 9000 : 2500)) {
         sendResponse({ accepted: false, error: "ChatGPT is already handling a request or the prompt is invalid." }); return;
       }
       sendResponse({ accepted: true }); // Synchronous acknowledgement, not the answer.

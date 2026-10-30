@@ -1,0 +1,30 @@
+import fs from 'node:fs/promises';import vm from 'node:vm';import assert from 'node:assert/strict';import {randomUUID} from 'node:crypto';
+const dir=new URL('../extension/',import.meta.url);
+const source=await Promise.all(['notes-store.js','review-store.js','context-store.js','context-controller.js','storage-manager.js','background.js'].map(name=>fs.readFile(new URL(name,dir),'utf8')));
+const ctx={URL,TextEncoder,crypto:{randomUUID},setTimeout,clearTimeout};
+for(const script of source.slice(0,-1))vm.runInNewContext(script,ctx);
+const a='https://docs.example',b='https://other.example';
+const note=(url,id)=>({url,id,body:'میرا نوٹ',anchor:{exact:'<img src=x onerror=alert(1)>',prefix:'',suffix:''}});
+const review=url=>({url,items:[{text:'Saved quote',notes:[{action:'explain',summary:'Saved answer'}]}]});
+const highlight=url=>['wordHighlightsV1:'+url,{items:[{id:'h',color:'blue',anchor:{exact:'Saved highlight',prefix:'',suffix:''}}]}];
+const initial={language:'ur-PK',rate:1.2,customManagedKey:{keep:true},wordReviewPagesV1:[review(a+'/one'),review(a+'/two'),review(b)],wordPersonalNotesV1:[note(a+'/one','1'),note(b+'/one','2')],wordContextsV1:[{id:'research',name:'Shared study',quotes:[{url:a+'/one',text:'A'},{url:b+'/one',text:'B'}]}],...Object.fromEntries([highlight(a+'/one'),highlight(a+'/two?x=1'),highlight(b+'/one'),highlight('https://sub.docs.example/one')])};
+let data=structuredClone(initial);
+const storage={QUOTA_BYTES:10485760,get:async key=>key===null?structuredClone(data):{[key]:structuredClone(data[key])},set:async value=>Object.assign(data,structuredClone(value)),remove:async keys=>{for(const key of Array.isArray(keys)?keys:[keys])delete data[key];},getKeys:async()=>Object.keys(data),getBytesInUse:async()=>9876};
+const notes=ctx.WordNotesStore.create(storage),reviewStore=ctx.WordReviewStore.create(storage),manager=ctx.WordStorageManager.create({storage,notesStore:notes,reviewStore});
+let report=await manager.inspect();const site=report.sites.find(site=>site.origin===a);
+assert.equal(site.highlights.count,2);assert.equal(site.review.count,2);assert.equal(site.notes.count,1);assert.equal(site.contextQuotes,1);assert.equal(report.totalBytes,9876);assert.equal(report.contexts.length,1);assert.equal(report.others[0].key,'customManagedKey');assert.equal(report.preferences.count,2);
+await manager.clear(a,'highlights');assert.ok(!data['wordHighlightsV1:'+a+'/one']);assert.ok(data['wordHighlightsV1:'+b+'/one']);assert.ok(data['wordHighlightsV1:https://sub.docs.example/one']);assert.equal(data.wordPersonalNotesV1.length,2);
+data=structuredClone(initial);await manager.clear(a,'notes');assert.equal(data.wordPersonalNotesV1.length,1);assert.equal(data.wordPersonalNotesV1[0].url,b+'/one');assert.equal(data.wordReviewPagesV1.length,3);
+data=structuredClone(initial);await manager.clear(a,'review');assert.equal(data.wordReviewPagesV1.length,1);assert.equal(data.wordReviewPagesV1[0].url,b);assert.equal(data.wordPersonalNotesV1.length,2);
+data=structuredClone(initial);await manager.clear(a,'all');assert.equal(data.wordPersonalNotesV1.length,1);assert.equal(data.wordReviewPagesV1.length,1);assert.deepEqual(data.wordContextsV1,initial.wordContextsV1);assert.equal(data.language,'ur-PK');assert.deepEqual(data.customManagedKey,{keep:true});
+await assert.rejects(manager.clear(a+'/page','all'));await assert.rejects(manager.clear(a,'contexts'));await assert.rejects(manager.clear('chrome://settings','all'));await assert.rejects(manager.clear(a,'language'));
+// Background route permits only the extension's Settings document, never source pages.
+let handler;ctx.chrome={runtime:{id:'test',getURL:name=>'chrome-extension://test/'+name,onMessage:{addListener:fn=>handler=fn}},storage:{local:storage,session:{}},commands:{onCommand:{addListener(){}}},tabs:{onRemoved:{addListener(){}}},alarms:{onAlarm:{addListener(){}}}};
+vm.runInNewContext(source.at(-1),ctx);
+const send=(message,sender)=>new Promise(resolve=>handler(message,sender,resolve));
+let reply=await send({type:'STORAGE_INSPECT'},{id:'test',url:'chrome-extension://test/options.html'});assert.equal(reply.ok,true);
+reply=await send({type:'STORAGE_INSPECT'},{id:'test',url:'chrome-extension://test/options.html',tab:{id:1}});assert.equal(reply.ok,true,'Settings remains trusted when opened in a browser tab');
+for(const sender of [{id:'test',url:'https://example.com/'},{id:'test',url:'chrome-extension://test/contexts.html'}]){reply=await send({type:'STORAGE_CLEAR_SITE',site:b,category:'all'},sender);assert.equal(reply.ok,false);}
+assert.ok(data['wordHighlightsV1:'+b+'/one'],'Untrusted requests do not mutate data');
+reply=await send({type:'STORAGE_CLEAR_SITE',site:b,category:'all'},{id:'test',url:'chrome-extension://test/options.html'});assert.equal(reply.ok,true);assert.ok(!data['wordHighlightsV1:'+b+'/one']);assert.equal(data.language,'ur-PK');assert.deepEqual(data.wordContextsV1,initial.wordContextsV1);
+console.log('PASS: per-site inventory, Unicode byte accounting, note/review/highlight counts, exact-origin/subdomain isolation, category and site cleanup, shared contexts/preferences/unknown-data preservation, invalid actions and trusted Settings-only boundary.');
