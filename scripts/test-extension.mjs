@@ -5,7 +5,7 @@ const dir=new URL('../extension/', import.meta.url).pathname;
 const bg=(await Promise.all(['review-store.js','context-store.js','context-controller.js','background.js'].map(name=>fs.readFile(dir+name,'utf8')))).join('\n');
 const worker=await fs.readFile(dir+'chatgpt-worker.js','utf8');
 const content=await fs.readFile(dir+'content.js','utf8');
-for(const name of ['background.js','chatgpt-worker.js','chat-cleanup.js','gemini-worker.js','review-panel.js','review-store.js','context-store.js','context-controller.js','context-graph.js','contexts.js','content.js','options.js','popup.js'])new vm.Script(await fs.readFile(dir+name,'utf8'));
+for(const name of ['background.js','pdf-selection.js','pdf-panel.js','chatgpt-worker.js','chat-cleanup.js','gemini-worker.js','review-panel.js','review-store.js','context-store.js','context-controller.js','context-graph.js','contexts.js','content.js','options.js','popup.js'])new vm.Script(await fs.readFile(dir+name,'utf8'));
 const flush=async()=>{for(let i=0;i<30;i++)await new Promise(setImmediate);};
 async function testBackground(restart=false,action="explain",translationLanguage="Urdu",provider="chatgpt"){
   let handler,alarmHandler,removedHandler;const store={},closed=[],notifications=[];let submittedPrompt="",createdUrl="";const prefix=provider.toUpperCase();
@@ -13,10 +13,10 @@ async function testBackground(restart=false,action="explain",translationLanguage
     storage:{session:{get:async()=>structuredClone(store),set:async value=>Object.assign(store,structuredClone(value)),remove:async key=>{delete store[key]}}},
     alarms:{create:async()=>{},clear:async()=>{},onAlarm:{addListener:f=>alarmHandler=f}},
     tabs:{onRemoved:{addListener:f=>removedHandler=f},create:async options=>{createdUrl=options.url;return{id:77}},remove:async id=>closed.push(id),sendMessage:async(id,msg)=>{
-      if(id===5){notifications.push(msg);return{received:true};}if(msg.type===prefix+'_START')submittedPrompt=msg.prompt;return msg.type===prefix+'_READY'?{ready:true,build:'0.4.0'}:{accepted:true};
+      if(id===5){notifications.push(msg);return{received:true};}if(msg.type===prefix+'_START')submittedPrompt=msg.prompt;return msg.type===prefix+'_READY'?{ready:true,build:'0.4.1'}:{accepted:true};
     }}};
   const boot=()=>vm.runInNewContext(bg,{chrome,console,setTimeout,clearTimeout,Date});boot();
-  let ack;const returned=handler({type:'EXPLAIN_SELECTION',text:'borrower',requestId:'r1',build:'0.4.0',action,translationLanguage,provider},{id:'test',tab:{id:5}},v=>ack=v);
+  let ack;const returned=handler({type:'EXPLAIN_SELECTION',text:'borrower',requestId:'r1',build:'0.4.1',action,translationLanguage,provider},{id:'test',tab:{id:5}},v=>ack=v);
   assert.equal(returned,undefined);assert.equal(ack.accepted,true);await flush();assert.equal(store.activeExplanationJob.tabId,77);if(action==='translate'){assert.ok(submittedPrompt.startsWith('Translate'));assert.ok(submittedPrompt.includes('into '+translationLanguage));assert.ok(submittedPrompt.includes('only the translation'));}else assert.ok(submittedPrompt.startsWith('Explain'));
   assert.equal(createdUrl,provider==="gemini"?"https://gemini.google.com/app":"https://chatgpt.com/");
   if(restart)boot();
@@ -160,7 +160,7 @@ async function testDirectGoogle(language='Urdu',failure=null){
   };
   vm.runInNewContext(bg,{chrome,fetch,URLSearchParams,AbortController,TypeError,console,setTimeout,clearTimeout,Date});
   let ack;const returned=handler({type:'TRANSLATE_SELECTION',text:'Hello & world?',translationLanguage:language,
-    requestId:'translation-1',build:'0.4.0',action:'translate'},{id:'test',tab:{id:5}},v=>ack=v);
+    requestId:'translation-1',build:'0.4.1',action:'translate'},{id:'test',tab:{id:5}},v=>ack=v);
   assert.equal(returned,undefined);assert.equal(ack.accepted,true);await flush();
   assert.equal(fetchCount,1);assert.equal(tabCount,0);assert.equal(delivered.length,1);
   assert.equal(delivered[0].type,'EXPLANATION_RESULT');assert.equal(delivered[0].requestId,'translation-1');
@@ -332,7 +332,7 @@ async function testContextBackground(provider='gemini',cleanupOutcome=null){
     commands:{onCommand:{addListener:()=>{}}},alarms:{create:async()=>{},clear:async()=>{},onAlarm:{addListener:()=>{}}},
     tabs:{create:async spec=>{opened.push(spec);return{id:77}},remove:async tabId=>closed.push(tabId),onRemoved:{addListener:()=>{}},sendMessage:async(id,msg)=>{
       if(msg.type.endsWith('_CLEANUP')){assert.ok(saved.wordContextsV1[0].summary,'Summary must be saved before chat deletion');return{deleted:cleanupOutcome==='success',error:cleanupOutcome==='failure'?'The generated chat was not found in Recents.':undefined}}
-      if(msg.type.endsWith('_READY'))return{ready:true,build:'0.4.0'};
+      if(msg.type.endsWith('_READY'))return{ready:true,build:'0.4.1'};
       if(msg.type.endsWith('_START')){preparedPrompt=msg;return{accepted:true}}return{};
     }}};
   let count=0;
@@ -418,3 +418,5 @@ await import('./test-context-graph.mjs');
 await import('./test-summary-cleanup-ui.mjs');
 
 await import('./test-selection-support.mjs');
+
+await import('./test-pdf-actions.mjs');

@@ -1,5 +1,5 @@
 (() => {
-  const BUILD="0.4.0";
+  const BUILD="0.4.1";
   const pronunciationAndTranslationOnly=typeof location!=="undefined"&&location.hostname==="chatgpt.com";
   let contextSelection="";
   const host = document.createElement("div");
@@ -92,7 +92,7 @@
       <div class="llm-choices" id="llm-choices" role="group" aria-label="Choose an AI provider" hidden><span>Ask which AI?</span><div class="provider-actions"><button class="action primary" id="explain" type="button">ChatGPT</button><button class="action primary" id="gemini" type="button">Gemini</button></div></div>
       <details class="result" id="result" hidden open><summary class="status"><span class="dot" aria-hidden="true"></span><span id="status">AI explanation</span></summary><div class="result-body" tabindex="0" aria-label="AI explanation"><div class="answer" id="answer" dir="auto"></div></div></details>
       <details class="result" id="translation-result" hidden open><summary class="status"><span class="dot" aria-hidden="true"></span><span id="translation-status">Translation</span></summary><div class="result-body" tabindex="0" aria-label="Translation"><button class="speaker" id="listen-translation" type="button" aria-label="Listen to translation" title="Listen to translation" hidden>🔊</button><div class="answer translation" id="translation-answer" dir="auto"></div><div class="speech-note" id="speech-note" role="status"></div></div></details>
-      <div class="footer"><span>Esc to close</span><span class="version">v0.4.0</span></div>
+      <div class="footer"><span>Esc to close</span><span class="version">v0.4.1</span></div>
     </section>`;
   document.documentElement.appendChild(host);
   let settings = { language:"en-US", rate:1, translationLanguage:"Urdu", translationFontSize:20 };
@@ -118,7 +118,6 @@
   const pending = new Map();
   const answers = new Map();
   const el=(id)=>root.getElementById(id);
-  if(globalThis.WordPDFReader)el("cross-context").hidden=true;
   if(pronunciationAndTranslationOnly){el("cross-context").hidden=true;el("ask-llm").hidden=true;el("actions").className="actions limited";}
   let spokenTranslation=null, speechId=null;
   const hide=()=>{ host.style.display="none";el("llm-choices").hidden=true;el("ask-llm").setAttribute("aria-expanded","false");stopTranslationSpeech();stopEquationSpeech(); };
@@ -212,7 +211,6 @@
   }
   chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
     if(sender.id!==chrome.runtime.id)return;
-    if(globalThis.WordPDFReader&&message.targetTabId!==globalThis.WordPDFReader.tabId)return;
     if(message.type==="TRANSLATION_SPEECH_STATUS"&&message.speechId===speechId){
       if(message.state==="playing"){el("listen-translation").textContent="■";el("listen-translation").ariaLabel="Stop reading translation";el("listen-translation").title="Stop reading translation";el("speech-note").textContent="";}
       else {speechId=null;el("listen-translation").textContent="🔊";el("listen-translation").ariaLabel="Listen to translation";el("listen-translation").title="Listen to translation";el("speech-note").textContent=message.state==="error"?(message.error||"Unable to play audio."):"";}
@@ -244,9 +242,6 @@
   document.addEventListener("keyup",event=>{if(event.key==="Escape")hide();});
   document.addEventListener("scroll",event=>{if(!event.composedPath().includes(host))hide();},true);
   window.addEventListener("resize",hide);
-  if(globalThis.WordPDFReader)document.addEventListener("keydown",event=>{
-    if(event.shiftKey&&(event.metaKey||event.ctrlKey)&&event.key.toLowerCase()==="y"){event.preventDefault();showSelection();}
-  });
   root.addEventListener("mousedown",event=>{if(event.target.closest?.("button"))event.preventDefault();});
   let drag=null;
   const handle=el("drag-handle");

@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PDF actions · Word Explainer</title><link rel="stylesheet" href="pdf-panel.css"></head>
+<body><header><span class="mark">W</span><div><h1>PDF actions</h1><p>Word Explainer</p></div><button id="settings" class="quiet" aria-label="Open settings">⚙</button></header>
+<main><p id="empty">Select text in your open PDF, right-click, and choose “Word Explainer — PDF actions”.</p>
+<div id="workspace" hidden><p class="eyebrow">Selected text</p><blockquote id="selection"></blockquote><p id="source"></p>
+<div class="actions"><button id="listen">▶ Listen</button><button id="equation">Equation Pronunciation</button><button id="translate">Translate</button><button id="ask">Ask to LLM</button></div>
+<button id="cross-context" class="context-action">Cross-page context ↗</button>
+<div id="providers" hidden><button id="chatgpt">ChatGPT</button><button id="gemini">Gemini</button></div>
+<p id="notice" role="status" aria-live="polite"></p>
+<details id="translation-section" hidden><summary>Translation</summary><p id="translation-status" role="status"></p><div id="translation-answer" class="answer" dir="auto"></div><button id="listen-translation" class="quiet" hidden>🔊 Listen to translation</button></details>
+<details id="explanation-section" hidden><summary>AI explanation</summary><p id="explanation-status" role="status"></p><div id="explanation-answer" class="answer" dir="auto"></div></details></div>
+<p class="hint">Your PDF stays open. Only the selected text is sent when you choose Translate or an AI provider. Image-only scans need selectable text.</p></main>
+<script src="equation-speech.js"></script><script src="pdf-panel.js"></script></body></html>

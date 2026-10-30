@@ -1,10 +1,10 @@
 // Page review storage is isolated from provider automation.
-if (typeof importScripts === "function") importScripts("review-store.js", "context-store.js", "context-controller.js");
+if (typeof importScripts === "function") importScripts("review-store.js", "context-store.js", "context-controller.js", "pdf-selection.js");
 const reviewStore = globalThis.WordReviewStore.create(chrome.storage.local);
 const contextStore = globalThis.WordContextStore.create(chrome.storage.local);
 const contextController = globalThis.WordContextController.create({chrome,store:contextStore,startJob,readJob:()=>readJob()});
 // Short acknowledgements; progress and answers arrive as separate messages.
-const BUILD = "0.4.0";
+const BUILD = "0.4.1";
 const JOB_KEY = "activeExplanationJob";
 const TIMEOUT_ALARM = "word-explanation-timeout";
 let starting = false;
@@ -12,18 +12,19 @@ const finishing = new Set();
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const readJob = async () => (await chrome.storage.session.get(JOB_KEY))[JOB_KEY];
 
-async function sendToPage(tabId,message,tab=null){
-  if(!tab&&typeof chrome.tabs.get==="function")tab=await chrome.tabs.get(tabId);
-  if(tab?.url&&typeof chrome.runtime.getURL==="function"&&tab.url.split(/[?#]/)[0]===chrome.runtime.getURL("pdf-reader.html"))
-    return chrome.runtime.sendMessage({...message,targetTabId:tabId});
-  return chrome.tabs.sendMessage(tabId,message,{frameId:0});
-}
+const pdfSelection = globalThis.WordPDFSelection?.create({chrome,translate:translateDirect,start:startJob,feedback:shortcutFeedback,
+  capture:record=>new Promise(resolve=>contextController.handle({type:"OPEN_CONTEXTS",text:record.text,title:record.title},
+    {id:chrome.runtime.id,tab:{id:record.tabId,url:record.url}},resolve))});
+
 async function notify(tabId, message) {
-  try { await sendToPage(tabId, message); }
+  if (pdfSelection && await pdfSelection.notify(tabId,message).catch(()=>false)) return;
+  try { await chrome.tabs.sendMessage(tabId, message, {frameId:0}); }
   catch { /* The source page may have navigated or been closed. */ }
 }
 async function routeJob(job, type, data) {
-  if(job.task === "context-summary") {
+  if(job.surface === "pdf-panel") {
+    await pdfSelection?.notify(job.sourceTabId,{type,requestId:job.requestId,...data});
+  } else if(job.task === "context-summary") {
     const contextType = type.replace("EXPLANATION_", "CONTEXT_SUMMARY_");
     await chrome.runtime.sendMessage({type:contextType,contextId:job.contextId,requestId:job.requestId,...data}).catch(()=>{});
   } else await notify(job.sourceTabId,{type,requestId:job.requestId,...data});
@@ -163,7 +164,7 @@ chrome.commands.onCommand.addListener(async (command, tab) => {
     if (!tab?.id) [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab?.id) return;
     // Unlike general notifications, a shortcut must not swallow delivery errors.
-    const reply = await sendToPage(tab.id, { type: "SHOW_SELECTION_MENU", build: BUILD },tab);
+    const reply = await chrome.tabs.sendMessage(tab.id, { type: "SHOW_SELECTION_MENU", build: BUILD }, {frameId:0});
     if (!reply?.ok || reply.build !== BUILD) {
       await shortcutFeedback(tab.id, reply?.error || "Refresh this web page after updating Word Explainer.");
     } else if (!reply.shown && reply.courseFramesAllowed) {
@@ -185,6 +186,7 @@ chrome.commands.onCommand.addListener(async (command, tab) => {
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (sender.id !== chrome.runtime.id || message.target === "translation-audio") return;
+  if (message.type?.startsWith("PDF_PANEL_")) return pdfSelection?.handle(message,sender,sendResponse) || undefined;
   if (message.type === "TRANSLATION_AUDIO_STATUS" && !sender.tab && sender.url === chrome.runtime.getURL("translation-audio.html")) {
     sendResponse({ ok: true });
     notify(message.sourceTabId, { type: "TRANSLATION_SPEECH_STATUS", speechId: message.speechId,
@@ -192,9 +194,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return;
   }
   if (message.type === "OPEN_CONTEXTS" || message.type?.startsWith("CONTEXT_")) return contextController.handle(message,sender,sendResponse);
-  if(message.type==="OPEN_PDF_READER"){
-    sendResponse({accepted:true});chrome.tabs.create({url:chrome.runtime.getURL("pdf-reader.html"),active:true}).catch(()=>{});return;
-  }
   if (!sender.tab) return;
   if (["REVIEW_LIST", "REVIEW_SAVE", "REVIEW_CLEAR"].includes(message.type)) {
     let url;

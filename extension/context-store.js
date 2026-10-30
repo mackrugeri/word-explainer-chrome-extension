@@ -5,7 +5,7 @@
   const clean = (value, max) => typeof value === 'string' ? value.trim().slice(0, max) : '';
   function sourceUrl(value) {
     const url = new URL(value);
-    if (!['http:', 'https:'].includes(url.protocol)) throw new Error('Only web page sources are supported.');
+    if (!['http:', 'https:'].includes(url.protocol) && !(url.protocol === 'file:' && /\.pdf$/i.test(url.pathname))) throw new Error('Only web page or local PDF sources are supported.');
     return url.href;
   }
   function quoteData(record) {

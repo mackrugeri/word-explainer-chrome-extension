@@ -1,12 +1,14 @@
 {
   "manifest_version": 3,
   "name": "Word Explainer",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Pronounce, translate, or ask ChatGPT or Gemini about selected text.",
   "permissions": [
     "storage",
     "alarms",
-    "offscreen"
+    "offscreen",
+    "contextMenus",
+    "sidePanel"
   ],
   "background": {
     "service_worker": "background.js"
@@ -77,5 +79,8 @@
     "https://translate.googleapis.com/*",
     "https://translate.google.com/*"
   ],
-  "minimum_chrome_version": "116"
+  "minimum_chrome_version": "116",
+  "side_panel": {
+    "default_path": "pdf-panel.html"
+  }
 }
