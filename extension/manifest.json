@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Word Explainer",
-  "version": "0.4.1",
+  "version": "0.4.4",
   "description": "Pronounce, translate, or ask ChatGPT or Gemini about selected text.",
   "permissions": [
     "storage",
@@ -25,6 +25,7 @@
       "js": [
         "review-panel.js",
         "equation-speech.js",
+        "highlighter.js",
         "content.js"
       ],
       "exclude_matches": [
@@ -40,6 +41,7 @@
         "chat-cleanup.js",
         "chatgpt-worker.js",
         "equation-speech.js",
+        "highlighter.js",
         "content.js"
       ],
       "run_at": "document_idle"

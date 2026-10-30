@@ -5,7 +5,7 @@ const dir=new URL('../extension/', import.meta.url).pathname;
 const bg=(await Promise.all(['review-store.js','context-store.js','context-controller.js','background.js'].map(name=>fs.readFile(dir+name,'utf8')))).join('\n');
 const worker=await fs.readFile(dir+'chatgpt-worker.js','utf8');
 const content=await fs.readFile(dir+'content.js','utf8');
-for(const name of ['background.js','pdf-selection.js','pdf-panel.js','chatgpt-worker.js','chat-cleanup.js','gemini-worker.js','review-panel.js','review-store.js','context-store.js','context-controller.js','context-graph.js','contexts.js','content.js','options.js','popup.js'])new vm.Script(await fs.readFile(dir+name,'utf8'));
+for(const name of ['background.js','pdf-selection.js','pdf-panel.js','chatgpt-worker.js','chat-cleanup.js','gemini-worker.js','review-panel.js','review-pdf.js','review-export.js','highlighter.js','paragraph-summary.js','review-store.js','context-store.js','context-controller.js','context-graph.js','contexts.js','content.js','options.js','popup.js'])new vm.Script(await fs.readFile(dir+name,'utf8'));
 const flush=async()=>{for(let i=0;i<30;i++)await new Promise(setImmediate);};
 async function testBackground(restart=false,action="explain",translationLanguage="Urdu",provider="chatgpt"){
   let handler,alarmHandler,removedHandler;const store={},closed=[],notifications=[];let submittedPrompt="",createdUrl="";const prefix=provider.toUpperCase();
@@ -13,10 +13,10 @@ async function testBackground(restart=false,action="explain",translationLanguage
     storage:{session:{get:async()=>structuredClone(store),set:async value=>Object.assign(store,structuredClone(value)),remove:async key=>{delete store[key]}}},
     alarms:{create:async()=>{},clear:async()=>{},onAlarm:{addListener:f=>alarmHandler=f}},
     tabs:{onRemoved:{addListener:f=>removedHandler=f},create:async options=>{createdUrl=options.url;return{id:77}},remove:async id=>closed.push(id),sendMessage:async(id,msg)=>{
-      if(id===5){notifications.push(msg);return{received:true};}if(msg.type===prefix+'_START')submittedPrompt=msg.prompt;return msg.type===prefix+'_READY'?{ready:true,build:'0.4.1'}:{accepted:true};
+      if(id===5){notifications.push(msg);return{received:true};}if(msg.type===prefix+'_START')submittedPrompt=msg.prompt;return msg.type===prefix+'_READY'?{ready:true,build:'0.4.4'}:{accepted:true};
     }}};
   const boot=()=>vm.runInNewContext(bg,{chrome,console,setTimeout,clearTimeout,Date});boot();
-  let ack;const returned=handler({type:'EXPLAIN_SELECTION',text:'borrower',requestId:'r1',build:'0.4.1',action,translationLanguage,provider},{id:'test',tab:{id:5}},v=>ack=v);
+  let ack;const returned=handler({type:'EXPLAIN_SELECTION',text:'borrower',requestId:'r1',build:'0.4.4',action,translationLanguage,provider},{id:'test',tab:{id:5}},v=>ack=v);
   assert.equal(returned,undefined);assert.equal(ack.accepted,true);await flush();assert.equal(store.activeExplanationJob.tabId,77);if(action==='translate'){assert.ok(submittedPrompt.startsWith('Translate'));assert.ok(submittedPrompt.includes('into '+translationLanguage));assert.ok(submittedPrompt.includes('only the translation'));}else assert.ok(submittedPrompt.startsWith('Explain'));
   assert.equal(createdUrl,provider==="gemini"?"https://gemini.google.com/app":"https://chatgpt.com/");
   if(restart)boot();
@@ -160,7 +160,7 @@ async function testDirectGoogle(language='Urdu',failure=null){
   };
   vm.runInNewContext(bg,{chrome,fetch,URLSearchParams,AbortController,TypeError,console,setTimeout,clearTimeout,Date});
   let ack;const returned=handler({type:'TRANSLATE_SELECTION',text:'Hello & world?',translationLanguage:language,
-    requestId:'translation-1',build:'0.4.1',action:'translate'},{id:'test',tab:{id:5}},v=>ack=v);
+    requestId:'translation-1',build:'0.4.4',action:'translate'},{id:'test',tab:{id:5}},v=>ack=v);
   assert.equal(returned,undefined);assert.equal(ack.accepted,true);await flush();
   assert.equal(fetchCount,1);assert.equal(tabCount,0);assert.equal(delivered.length,1);
   assert.equal(delivered[0].type,'EXPLANATION_RESULT');assert.equal(delivered[0].requestId,'translation-1');
@@ -247,14 +247,16 @@ const reviewSource=await fs.readFile(dir+'review-store.js','utf8');
 const reviewContext={URL}; vm.runInNewContext(reviewSource,reviewContext);
 const reviewData={}; const reviewStorage={get:async()=>structuredClone(reviewData),set:async value=>Object.assign(reviewData,structuredClone(value))};
 let review=reviewContext.WordReviewStore.create(reviewStorage);
-const pageA='https://example.com/article',pageB='https://example.com/other';
+const pageA='https://example.com/article',pageB='https://other.example/other';
 const note=(text,provider='chatgpt')=>({text,action:'explain',provider,answer:'First sentence. Second sentence. Third sentence.'});
 await Promise.all([review.save(pageA,note('one')),review.save(pageA,note('two'))]);
 assert.equal((await review.list(pageA)).length,2,'Concurrent writes must not lose concepts');
 await review.save(pageA+'#paragraph',note('one','gemini'));
 let savedReview=await review.list(pageA);assert.equal(savedReview.length,2);assert.equal(savedReview.find(i=>i.text==='one').notes.length,2);
 assert.equal(savedReview[0].notes[0].summary,'First sentence. Second sentence.');
-assert.equal((await review.list(pageB)).length,0,'Different pages must stay isolated');
+assert.equal((await review.list('https://example.com/next?step=2')).length,2,'Next documentation page must keep previous concepts');
+assert.equal((await review.list('https://docs.example.com/article')).length,0,'Different subdomains stay isolated');
+assert.equal((await review.list(pageB)).length,0,'Different sites must stay isolated');
 await review.save(pageB,{text:'one',action:'translate',language:'Urdu',answer:'پہلا جملہ۔ دوسرا جملہ۔ تیسرا جملہ۔'});
 assert.equal((await review.list(pageB))[0].notes[0].summary,'پہلا جملہ۔ دوسرا جملہ۔');
 review=reviewContext.WordReviewStore.create(reviewStorage);assert.equal((await review.list(pageA)).length,2,'Reload must retain review');
@@ -262,7 +264,7 @@ await review.clear(pageA);assert.equal((await review.list(pageA)).length,0);asse
 await assert.rejects(review.save(pageA,{text:'bad',action:'listen',answer:'Not an explanation'}));
 for(let i=0;i<45;i++)await review.save(pageA,note('concept '+i));
 assert.equal((await review.list(pageA)).length,40);
-for(let i=0;i<22;i++)await review.save('https://example.com/'+i,note('one'));
+for(let i=0;i<22;i++)await review.save('https://site'+i+'.example/article',note('one'));
 assert.equal(reviewData.wordReviewPagesV1.length,20);
 assert.ok(reviewContext.WordReviewStore.excerpt('x'.repeat(400)).length<=240);
 
@@ -294,6 +296,8 @@ async function testReviewPanel(){
   elements.toggle.pointerdown({button:0,pointerId:2,clientX:100,clientY:16});
   elements.toggle.pointermove({pointerId:2,clientX:-10000,clientY:-10000,preventDefault:()=>{}});
   elements.toggle.pointercancel({pointerId:2});assert.equal(host.style.left,'8px');assert.equal(host.style.top,'8px');
+  elements.toggle.click({detail:0});await flush();
+  location.href='https://example.com/next?step=2';timer();await flush();assert.equal(elements.panel.hidden,false,'Same-site Next navigation must preserve the open review');
   location.href=pageB;timer();await flush();assert.equal(elements.panel.hidden,true);
   const before=requests.length;await context.WordReviewPanel.record({pageUrl:pageA,...note('old result')});assert.equal(requests.length,before,'Late result from a prior page must not be saved on the new page');
 }
@@ -332,7 +336,7 @@ async function testContextBackground(provider='gemini',cleanupOutcome=null){
     commands:{onCommand:{addListener:()=>{}}},alarms:{create:async()=>{},clear:async()=>{},onAlarm:{addListener:()=>{}}},
     tabs:{create:async spec=>{opened.push(spec);return{id:77}},remove:async tabId=>closed.push(tabId),onRemoved:{addListener:()=>{}},sendMessage:async(id,msg)=>{
       if(msg.type.endsWith('_CLEANUP')){assert.ok(saved.wordContextsV1[0].summary,'Summary must be saved before chat deletion');return{deleted:cleanupOutcome==='success',error:cleanupOutcome==='failure'?'The generated chat was not found in Recents.':undefined}}
-      if(msg.type.endsWith('_READY'))return{ready:true,build:'0.4.1'};
+      if(msg.type.endsWith('_READY'))return{ready:true,build:'0.4.4'};
       if(msg.type.endsWith('_START')){preparedPrompt=msg;return{accepted:true}}return{};
     }}};
   let count=0;
@@ -378,21 +382,26 @@ async function testExactChatCleanup(mode='success',provider='chatgpt'){
   const location={hostname:hostName,origin:'https://'+hostName,pathname:prefix+'owned-chat',href:'https://'+hostName+prefix+'owned-chat'};
   const visible={getClientRects:()=>[{}],disabled:false};
   const anchor={href:location.href,getAttribute:()=>prefix+'owned-chat'};
-  const menu={...visible,focus:()=>{},dispatchEvent:event=>{if(mode==='pointer-menu'&&event.type==='pointerdown')phase=1;return true},click:()=>{if(mode!=='pointer-menu')phase=1;clicks++}};
+  const menu={...visible,focus:()=>{},dispatchEvent:event=>{if(['pointer-menu','double-toggle-menu'].includes(mode)&&event.type==='pointerdown')phase=1;return true},click:()=>{if(mode==='double-toggle-menu')phase=phase===1?0:1;else if(mode!=='pointer-menu')phase=1;clicks++}};
   const option={...visible,textContent:'Delete',click:()=>{phase=2;clicks++}};
+  const wrapper={...visible,textContent:'Delete',closest:()=>wrapper};
+  const portal={...visible,querySelectorAll:()=>[wrapper,option]};
+  if(mode==='nested-delete'){option.closest=()=>wrapper;option.tagName='BUTTON';}
+  if(mode==='shortcut-delete')option.textContent='Delete ⌘⌫';
   const confirm={...visible,textContent:'Delete',click:()=>{phase=3;clicks++;location.pathname='/'}};
   const dialog={...visible,textContent:'Delete this chat?',querySelectorAll:()=>[confirm]};
   const row={parentElement:null,querySelectorAll:()=>[anchor],querySelector:()=>menu};anchor.parentElement=row;
   const document={querySelectorAll:selector=>{
     if((selector.includes('data-message')||selector.includes('user-query')))return[{getAttribute:key=>mode==='role-heading'&&key==='data-conversation-role'?'user':null,parentElement:mode==='role-heading'?{innerText:'You said Explain borrower.',querySelectorAll:()=>[{innerText:'Explain borrower.'}]}:null,innerText:mode==='role-heading'?'You said':mode==='gemini-a11y-label'?'You said Explain borrower. Explain borrower.':mode==='wrong-prompt'?'A personal conversation':mode==='decorated-prompt'?'You said Explain borrower.':'Explain borrower.',querySelectorAll:selector=>mode==='decorated-prompt'?[{innerText:'Explain borrower.'}]:mode==='gemini-a11y-label'&&selector==='.query-text-line'?[{textContent:'Explain'},{textContent:'borrower.'}]:[]}];
     if(selector==='a[href]')return mode==='missing-row'||phase===3?[]:mode==='with-skip-link'?[{href:location.href+'#skip',parentElement:null},anchor]:[anchor];
-    if(selector==='[role="menuitem"]')return phase===1?(mode==='ambiguous-menu'?[option,option]:[option]):[];
+    if(selector==='[role="menu"], [data-radix-menu-content]')return mode==='nested-delete'&&phase===1?[portal]:[];
+    if(selector==='[role="menuitem"]')return phase===1?(mode==='ambiguous-menu'?[option,{...option}]:[option]):[];
     if(selector.includes('alertdialog'))return phase===2?[dialog]:[];
     return[];
   }};
   const scope={URL,document,location,PointerEvent:class{constructor(type,options){this.type=type;Object.assign(this,options)}},MouseEvent:class{constructor(type,options){this.type=type;Object.assign(this,options)}},Date:{now:()=>{t+=200;return t}},setTimeout:fn=>fn()};vm.runInNewContext(cleanupScript,scope);
   const result=await scope.WordChatCleanup.remove(prefix+(mode==='wrong-path'?'other-chat':'owned-chat'),'Explain borrower.');
-  assert.equal(result.deleted,['success','decorated-prompt','role-heading','with-skip-link','pointer-menu','gemini-a11y-label'].includes(mode));assert.equal(clicks,['success','decorated-prompt','role-heading','with-skip-link','pointer-menu','gemini-a11y-label'].includes(mode)?3:mode==='ambiguous-menu'?1:0);
+  assert.equal(result.deleted,['success','decorated-prompt','role-heading','with-skip-link','pointer-menu','double-toggle-menu','nested-delete','shortcut-delete','gemini-a11y-label'].includes(mode));assert.equal(clicks,['success','decorated-prompt','role-heading','with-skip-link','pointer-menu','double-toggle-menu','nested-delete','shortcut-delete','gemini-a11y-label'].includes(mode)?(['pointer-menu','double-toggle-menu'].includes(mode)?2:3):mode==='ambiguous-menu'?1:0);
 }
 for(const mode of ['success','wrong-path','wrong-prompt','missing-row','ambiguous-menu'])await testExactChatCleanup(mode);
 console.log('PASS: exact ChatGPT conversation deletion, prompt matching, wrong-chat refusal, missing-row refusal, and ambiguous-menu refusal.');
@@ -409,7 +418,7 @@ await testExactChatCleanup('role-heading');
 
 await testExactChatCleanup('with-skip-link');await testExactChatCleanup('with-skip-link','gemini');
 
-await testExactChatCleanup('pointer-menu');
+await testExactChatCleanup('pointer-menu');await testExactChatCleanup('double-toggle-menu');await testExactChatCleanup('nested-delete');await testExactChatCleanup('shortcut-delete');
 
 await testExactChatCleanup('gemini-a11y-label','gemini');
 
@@ -420,3 +429,9 @@ await import('./test-summary-cleanup-ui.mjs');
 await import('./test-selection-support.mjs');
 
 await import('./test-pdf-actions.mjs');
+
+await import('./test-site-review.mjs');
+
+await import('./test-review-export.mjs');
+
+await import('./test-paragraph-summary.mjs');

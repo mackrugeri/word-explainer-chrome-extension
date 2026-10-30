@@ -1,6 +1,6 @@
 // UI automation only; never reads account cookies or existing user conversations.
 (() => {
-  const BUILD = "0.4.1";
+  const BUILD = "0.4.4";
   let busy = false;
   let cleanupEligible = false;
   let ownedPrompt = "";
@@ -104,7 +104,7 @@
     }
     if (message.type === "GEMINI_READY") { sendResponse({ ready: true, build: BUILD }); return; }
     if (message.type === "GEMINI_START") {
-      if (busy || typeof message.prompt !== "string" || message.prompt.length > (message.task === "context-summary" ? 28000 : 2500)) {
+      if (busy || typeof message.prompt !== "string" || message.prompt.length > (message.task === "context-summary" ? 28000 : message.task === "paragraph-summary" ? 9000 : 2500)) {
         sendResponse({ accepted: false, error: "Gemini is already handling a request or the prompt is invalid." }); return;
       }
       sendResponse({ accepted: true }); // Synchronous acknowledgement, not the answer.

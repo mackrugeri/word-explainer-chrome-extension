@@ -51,24 +51,61 @@
     const menu = await waitFor(rowMenu);
     if (!menu) return { deleted: false, error: 'The generated chat was not found in Recents.' };
     if (location.pathname !== path) return { deleted: false, error: 'The conversation changed before cleanup.' };
-    // Radix menus open on pointerdown, not HTMLElement.click(). Send the
-    // pointer sequence before click so both Radix and Material menus work.
-    menu.focus?.({preventScroll:true});
-    const pointer = {bubbles:true,cancelable:true,pointerId:1,pointerType:'mouse',isPrimary:true,button:0,buttons:1};
-    menu.dispatchEvent(new PointerEvent('pointerdown',pointer));
-    menu.dispatchEvent(new PointerEvent('pointerup',{...pointer,buttons:0}));
-    menu.click();
     const deleteLabel = node => {
-      const label = node.getAttribute?.('aria-label');
-      if (label) return label.trim();
-      const textNode = gemini ? node.querySelector?.('.mat-mdc-menu-item-text') : null;
-      return (textNode?.textContent || node.textContent || '').trim().replace(/^(?:delete|delete_outline)\s+(?=Delete)/, '');
+      let label = node.getAttribute?.('aria-label');
+      if (!label) {
+        const textNode = gemini ? node.querySelector?.('.mat-mdc-menu-item-text') : null;
+        const copy = (textNode || node).cloneNode?.(true);
+        // Shortcut hints and decorative icons are not part of the action name.
+        if (copy) for (const hint of copy.querySelectorAll('kbd, svg, [aria-hidden="true"], [data-slot="shortcut"], .shortcut, .text-token-text-tertiary')) hint.remove();
+        label = copy?.textContent || textNode?.textContent || node.textContent || '';
+      }
+      return normalize(label).replace(/^(?:delete|delete_outline)\s+(?=Delete)/, '')
+        .replace(/\s*[⌘⌥⇧⌃⌫⌦].*$/u, '').trim();
     };
-    const option = await waitFor(() => {
-      const items = [...document.querySelectorAll('[role="menuitem"]')].filter(node => shown(node) && /^Delete(?: chat| conversation)?$/i.test(deleteLabel(node)));
-      return items.length === 1 ? items[0] : null;
-    });
-    if (!option || location.pathname !== path) return { deleted: false, error: 'The specific chat delete action was unavailable.' };
+    const visibleMenus = () => [...document.querySelectorAll('[role="menu"], [data-radix-menu-content]')].filter(shown);
+    // Never act on a menu that was already open for some other row.
+    if (visibleMenus().length && menu.getAttribute?.('aria-expanded') !== 'true')
+      return { deleted: false, error: 'Another menu was already open. Close it and retry cleanup.' };
+    const findDelete = () => {
+      const menus = visibleMenus();
+      const candidates = menus.length
+        ? menus.flatMap(node => [...node.querySelectorAll('[role="menuitem"], button')])
+        : [...document.querySelectorAll('[role="menuitem"]')];
+      const actions = new Map();
+      for (const node of candidates) {
+        if (!shown(node) || !/^Delete(?: chat| conversation)?$/i.test(deleteLabel(node))) continue;
+        // New layouts wrap a button in a menuitem. Those are one action,
+        // not two ambiguous Delete actions. Distinct menuitems stay distinct.
+        const owner = node.closest?.('[role="menuitem"]') || node;
+        if (!actions.has(owner) || node.tagName === 'BUTTON') actions.set(owner, node);
+      }
+      return actions.size === 1 ? [...actions.values()][0] : null;
+    };
+    menu.focus?.({preventScroll:true});
+    let option = null;
+    if (menu.getAttribute?.('aria-expanded') === 'true') option = await waitFor(findDelete, 1000);
+    else {
+      // Some menus open on pointerdown; an additional click can immediately
+      // toggle them closed. Only try click if pointerdown did not open a menu.
+      const pointer = {bubbles:true,cancelable:true,pointerId:1,pointerType:'mouse',isPrimary:true,button:0,buttons:1};
+      menu.dispatchEvent(new PointerEvent('pointerdown',pointer));
+      menu.dispatchEvent(new PointerEvent('pointerup',{...pointer,buttons:0}));
+      option = await waitFor(findDelete, 700);
+      if (!option && menu.getAttribute?.('aria-expanded') !== 'true' && !visibleMenus().length) {
+        if (location.pathname !== path) return { deleted: false, error: 'The conversation changed before cleanup.' };
+        menu.click(); option = await waitFor(findDelete);
+      }
+    }
+    if (location.pathname !== path) return { deleted: false, error: 'The conversation changed before choosing Delete.' };
+    if (!option) {
+      const menus=visibleMenus();
+      const opened=menus.length>0||menu.getAttribute?.('aria-expanded')==='true';
+      const actions=[...new Set((menus.length?menus.flatMap(node=>[...node.querySelectorAll('[role="menuitem"], button')]):[...document.querySelectorAll('[role="menuitem"]')]).filter(shown).map(deleteLabel).filter(Boolean))].slice(0,8).map(label=>label.slice(0,45));
+      return { deleted: false, error: opened
+        ? 'The chat menu opened, but no unique Delete action was found. Visible actions: '+(actions.join(', ')||'none')+'.'
+        : 'The chat actions menu did not open after pointer and click attempts.' };
+    }
     option.click();
     const dialog = await waitFor(() => [...document.querySelectorAll('[role="dialog"], [role="alertdialog"]')].find(node => shown(node) && /delete.*(?:chat|conversation)/i.test(node.textContent)));
     if (!dialog || location.pathname !== path) return { deleted: false, error: 'Deletion could not be confirmed for this chat.' };

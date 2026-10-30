@@ -1,0 +1,51 @@
+import fs from 'node:fs/promises';
+import vm from 'node:vm';
+import assert from 'node:assert/strict';
+const dir=new URL('../extension/',import.meta.url);
+const read=name=>fs.readFile(new URL(name,dir),'utf8');
+const summary=await read('paragraph-summary.js');
+const service={};vm.runInNewContext(summary,service);
+const source='The project cut energy use by 20 percent, although savings varied by season. '.repeat(20).trim();
+const prompt=service.WordParagraphSummary.prompt(source);
+assert.ok(prompt.startsWith('Summarize only the selected source paragraph'));
+assert.ok(prompt.includes(source));assert.ok(prompt.includes('at most 60 words'));
+for(const bad of ['', ' '.repeat(5), 'x'.repeat(8001)])assert.throws(()=>service.WordParagraphSummary.prompt(bad));
+const flush=async()=>{for(let i=0;i<30;i++)await new Promise(setImmediate)};
+const content=await read('content.js');
+for(const provider of ['chatgpt','gemini']){
+ let listener,selected=source,serial=0;const requests=[],elements={};
+ const root={getElementById:id=>elements[id],addEventListener(){}};
+ Object.defineProperty(root,'innerHTML',{set(html){for(const [,id]of html.matchAll(/id="([^"]+)"/g))elements[id]={style:{},hidden:false,textContent:'',setAttribute(k,v){this[k]=v},addEventListener(k,v){this[k]=v}}}});
+ const host={style:{},attachShadow:()=>root,getBoundingClientRect:()=>({left:50,top:50,width:392,height:300})};
+ const chrome={runtime:{id:'test',onMessage:{addListener:f=>listener=f},sendMessage:async message=>{requests.push(message);return{accepted:true}}},storage:{local:{get:async defaults=>defaults},onChanged:{addListener(){}}}};
+ vm.runInNewContext(content,{chrome,document:{createElement:()=>host,documentElement:{appendChild(){}},addEventListener(){}},window:{getSelection:()=>({toString:()=>selected,rangeCount:1,getRangeAt:()=>({getBoundingClientRect:()=>({left:20,top:50,bottom:70})})}),addEventListener(){}},location:{hostname:'example.com',href:'https://example.com/'},crypto:{randomUUID:()=>String(++serial)},innerWidth:1200,innerHeight:800,setTimeout:()=>1,clearTimeout(){}});
+ const dispatch=message=>listener(message,{id:'test'},()=>{});
+ dispatch({type:'SHOW_SELECTION_MENU'});assert.equal(requests.length,0);
+ elements.summarize.click();assert.equal(requests.length,1,'Summarize sends immediately on click');assert.equal(elements['llm-choices'].hidden,true);await flush();
+ assert.equal(requests[0].type,'SUMMARIZE_SELECTION');assert.equal(requests[0].action,'summarize');assert.equal(requests[0].provider,'chatgpt');assert.equal(requests[0].text,source,'Whole paragraph beyond 1000 characters is sent');
+ dispatch({type:'EXPLANATION_PARTIAL',requestId:'1',stage:'Receiving…',text:'Energy use fell.'});
+ assert.equal(elements['summary-answer'].textContent,'Energy use fell.');assert.equal(elements.answer.textContent,'');
+ dispatch({type:'EXPLANATION_RESULT',requestId:'1',ok:true,text:'Energy use fell 20 percent, with seasonal variation.',warning:'Chat cleanup failed; tab retained.'});
+ assert.ok(elements['summary-status'].textContent.startsWith('Summary'));assert.ok(elements['summary-status'].textContent.includes('cleanup'));
+ elements.translate.click();await flush();dispatch({type:'EXPLANATION_RESULT',requestId:'2',ok:true,text:'Translation only'});
+ const beforeExplanation=requests.length;elements['ask-llm'].click();assert.equal(requests.length,beforeExplanation,'Explanation provider choice sends no request');assert.equal(elements['llm-choices'].hidden,false);elements[provider==='gemini'?'gemini':'explain'].click();await flush();assert.equal(requests.at(-1).action,'explain');assert.equal(requests.at(-1).provider,provider);dispatch({type:'EXPLANATION_RESULT',requestId:'3',ok:true,text:'Explanation only'});
+ assert.equal(elements['summary-answer'].textContent,'Energy use fell 20 percent, with seasonal variation.');
+ assert.equal(elements['translation-answer'].textContent,'Translation only');assert.equal(elements.answer.textContent,'Explanation only');
+ dispatch({type:'SHOW_SELECTION_MENU'});assert.equal(elements['summary-result'].hidden,false);
+ elements.summarize.click();await flush();assert.equal(requests.at(-1).provider,'chatgpt','Summary uses ChatGPT even after Gemini explanation');assert.equal(elements['llm-choices'].hidden,true);dispatch({type:'EXPLANATION_RESULT',requestId:'4',ok:false,error:'Provider unavailable'});
+ assert.equal(elements['summary-answer'].textContent,'Provider unavailable');assert.ok(elements['summary-status'].textContent.startsWith('Summary'));
+ selected='x'.repeat(8001);dispatch({type:'SHOW_SELECTION_MENU'});const before=requests.length;elements.summarize.click();await flush();assert.equal(requests.length,before);assert.ok(elements['summary-answer'].textContent.includes('8,000'));
+}
+const bg=(await Promise.all(['review-store.js','context-store.js','context-controller.js','paragraph-summary.js','background.js'].map(read))).join('\n');
+for(const provider of ['chatgpt','gemini']){
+ let handler;const store={},notifications=[],closed=[],prefix=provider.toUpperCase();let start;
+ const chrome={runtime:{id:'test',onMessage:{addListener:f=>handler=f}},commands:{onCommand:{addListener(){}}},storage:{session:{get:async()=>structuredClone(store),set:async v=>Object.assign(store,structuredClone(v)),remove:async k=>delete store[k]}},alarms:{create:async()=>{},clear:async()=>{},onAlarm:{addListener(){}}},tabs:{onRemoved:{addListener(){}},create:async()=>({id:77}),remove:async id=>closed.push(id),sendMessage:async(id,msg)=>{if(id===5){notifications.push(msg);return{received:true}}if(msg.type===prefix+'_START')start=msg;return msg.type===prefix+'_READY'?{ready:true,build:'0.4.4'}:msg.type===prefix+'_CLEANUP'?{deleted:true}:{accepted:true}}}};
+ const boot=()=>vm.runInNewContext(bg,{chrome,Date,setTimeout,clearTimeout});boot();
+ let ack;handler({type:'SUMMARIZE_SELECTION',action:'summarize',text:source,requestId:'summary',build:'0.4.4',provider},{id:'test',tab:{id:5}},v=>ack=v);
+ assert.equal(ack.accepted,true);await flush();assert.equal(start.task,'paragraph-summary');assert.equal(start.prompt,prompt);assert.equal(store.activeExplanationJob.expectedPrompt,prompt);
+ boot();handler({type:prefix+'_PARTIAL',text:'Partial summary'},{id:'test',tab:{id:88}},()=>{});await flush();assert.equal(notifications.length,0);
+ handler({type:prefix+'_PARTIAL',text:'Partial summary'},{id:'test',tab:{id:77}},()=>{});await flush();assert.equal(notifications.at(-1).requestId,'summary');
+ handler({type:prefix+'_RESULT',ok:true,text:'Final summary',cleanupPath:provider==='gemini'?'/app/owned':'/c/owned'},{id:'test',tab:{id:77}},()=>{});await flush();assert.equal(notifications.at(-1).text,'Final summary');assert.deepEqual(closed,[77]);assert.equal(store.activeExplanationJob,undefined);
+ handler({type:'SUMMARIZE_SELECTION',action:'summarize',text:'x'.repeat(8001),requestId:'bad',build:'0.4.4',provider},{id:'test',tab:{id:5}},v=>ack=v);assert.equal(ack.accepted,false);
+}
+console.log('PASS: explicit paragraph prompts, full source, immediate ChatGPT summary, explanation provider choice without automatic requests, both backend provider routes, restart and ownership guards, shared cleanup, independent result sections, reopen, errors and length limits.');

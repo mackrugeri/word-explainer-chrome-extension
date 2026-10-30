@@ -1,4 +1,4 @@
-// Independent page-level revision UI; selection popup lifecycle does not affect it.
+// Independent site-level revision UI; selection popup lifecycle does not affect it.
 (() => {
   const host = document.createElement('div');
   host.style.cssText = 'position:fixed;top:16px;right:16px;z-index:2147483646';
@@ -16,11 +16,11 @@
     article{padding:12px 0;border-bottom:1px solid var(--line)}h3{margin:0 0 8px;font-size:14px;overflow-wrap:anywhere}p{margin:4px 0 10px;overflow-wrap:anywhere;white-space:pre-wrap}.label{color:var(--muted);font-size:10px;font-weight:600}
     footer{padding:12px 16px;display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:10px}.clear{border:1px solid var(--line);border-radius:8px;background:var(--soft);color:var(--ink);padding:5px 8px}.status{padding:0 16px;color:var(--muted);font-size:11px}
     @media(prefers-color-scheme:dark){.review{--bg:#18231f;--ink:#edf4ef;--muted:#a5b9ae;--line:#35463b;--green:#a4d7b8;--soft:#202f27}}
-  </style><div class="review"><button class="badge" id="toggle" hidden type="button" aria-expanded="false" aria-controls="panel" title="Click to open · drag to move">✦ Review <span id="count">0</span></button><div class="panel" id="panel" hidden><header><h2>This page · Quick recap</h2><button class="close" id="close" type="button" aria-label="Close review">×</button></header><p class="intro">Up to two short sentences from each completed answer. Longer text is shortened. Only this page’s concepts appear here.</p><section class="items" id="items" tabindex="0" aria-label="Saved concepts"></section><p class="status" id="status" role="status"></p><footer><span>Saved on this device</span><button class="clear" id="clear" type="button">Clear page</button></footer></div></div>`;
+  </style><div class="review"><button class="badge" id="toggle" hidden type="button" aria-expanded="false" aria-controls="panel" title="Click to open · drag to move">✦ Review <span id="count">0</span></button><div class="panel" id="panel" hidden><header><h2>This site · Quick recap</h2><button class="close" id="close" type="button" aria-label="Close review">×</button></header><p class="intro">Up to two short sentences from each completed answer. Longer text is shortened. Concepts stay available across pages on this site.</p><section class="items" id="items" tabindex="0" aria-label="Saved concepts"></section><p class="status" id="status" role="status"></p><footer><button class="clear" id="download" type="button">Download PDF</button><button class="clear" id="clear" type="button">Clear this site’s review</button></footer></div></div>`;
   document.documentElement.appendChild(host);
   const el = id => root.getElementById(id);
   let page = pageUrl(), epoch = 0, disposed = false, items = [];
-  function pageUrl() { const url = new URL(location.href); url.hash = ''; return url.href; }
+  function pageUrl() { return new URL(location.href).origin; }
   function setOpen(open) { el('panel').hidden = !open; el('toggle').setAttribute('aria-expanded', String(open)); if (open) positionPanel(); }
   let drag = null, suppressClick = false;
   const badge = el('toggle');
@@ -72,7 +72,7 @@
     el('count').textContent = String(items.length);
     el('toggle').hidden = items.length === 0;
     if (!items.length) setOpen(false);
-    el('toggle').setAttribute('aria-label', `Review ${items.length} concepts from this page`);
+    el('toggle').setAttribute('aria-label', `Review ${items.length} concepts from this site`);
     el('items').replaceChildren();
     for (const item of items) {
       const article = document.createElement('article');
@@ -86,7 +86,7 @@
       el('items').appendChild(article);
     }
     el('status').textContent = items.length ? '' : 'Ask an AI or translate selected text to start your recap.';
-    el('clear').disabled = !items.length; positionPanel();
+    el('clear').disabled = !items.length; el('download').disabled = !items.length; positionPanel();
   }
   async function load() {
     const current = ++epoch;
@@ -103,19 +103,29 @@
   el('toggle').addEventListener('click', (event = {}) => { if (suppressClick && event.detail !== 0) { suppressClick = false; return; } syncPage(); setOpen(el('panel').hidden); if (!el('panel').hidden) load(); });
   el('close').addEventListener('click', () => { setOpen(false); el('toggle').focus(); });
   root.addEventListener('keydown', event => { if (event.key === 'Escape') { setOpen(false); el('toggle').focus(); } });
+  el('download').addEventListener('click', async () => {
+    const button=el('download');button.disabled=true;el('status').textContent='Preparing your PDF…';
+    try { await send('REVIEW_EXPORT');el('status').textContent='Your PDF is being prepared in the report tab.'; }
+    catch(error) { el('status').textContent=error.message||'Could not prepare the PDF. Please retry.'; }
+    finally { button.disabled=!items.length; }
+  });
   el('clear').addEventListener('click', async () => {
     const current = ++epoch; el('clear').disabled = true;
     try { const records = await send('REVIEW_CLEAR'); if (current === epoch) render(records); }
-    catch { el('status').textContent = 'Could not clear this page. Please retry.'; el('clear').disabled = !items.length; }
+    catch { el('status').textContent = 'Could not clear this site’s review. Please retry.'; el('clear').disabled = !items.length; }
   });
   globalThis.WordReviewPanel = {
     async record(record) {
-      syncPage(); if (record.pageUrl !== page || disposed) return;
+      syncPage(); if (disposed) return;
+      try { if (new URL(record.pageUrl).origin !== page) return; } catch { return; }
       const current = ++epoch;
       try { const records = await send('REVIEW_SAVE', record); if (current === epoch && !disposed) render(records); }
       catch { if (current === epoch) el('status').textContent = 'The answer could not be saved for review. Please retry.'; }
       // Never open the panel when an answer arrives.
     }
   };
+  chrome.storage?.onChanged?.addListener((changes, area) => {
+    if (area === 'local' && changes.wordReviewPagesV1 && !disposed) load();
+  });
   load();
 })();
