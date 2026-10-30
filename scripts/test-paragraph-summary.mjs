@@ -36,7 +36,7 @@ for(const provider of ['chatgpt','gemini']){
  assert.equal(elements['summary-answer'].textContent,'Provider unavailable');assert.ok(elements['summary-status'].textContent.startsWith('Summary'));
  selected='x'.repeat(8001);dispatch({type:'SHOW_SELECTION_MENU'});const before=requests.length;elements.summarize.click();await flush();assert.equal(requests.length,before);assert.ok(elements['summary-answer'].textContent.includes('8,000'));
 }
-const bg=(await Promise.all(['review-store.js','context-store.js','context-controller.js','paragraph-summary.js','background.js'].map(read))).join('\n');
+const bg=(await Promise.all(['notes-store.js','review-store.js','context-store.js','context-controller.js','paragraph-summary.js','background.js'].map(read))).join('\n');
 for(const provider of ['chatgpt','gemini']){
  let handler;const store={},notifications=[],closed=[],prefix=provider.toUpperCase();let start;
  const chrome={runtime:{id:'test',onMessage:{addListener:f=>handler=f}},commands:{onCommand:{addListener(){}}},storage:{session:{get:async()=>structuredClone(store),set:async v=>Object.assign(store,structuredClone(v)),remove:async k=>delete store[k]}},alarms:{create:async()=>{},clear:async()=>{},onAlarm:{addListener(){}}},tabs:{onRemoved:{addListener(){}},create:async()=>({id:77}),remove:async id=>closed.push(id),sendMessage:async(id,msg)=>{if(id===5){notifications.push(msg);return{received:true}}if(msg.type===prefix+'_START')start=msg;return msg.type===prefix+'_READY'?{ready:true,build:'0.4.4'}:msg.type===prefix+'_CLEANUP'?{deleted:true}:{accepted:true}}}};

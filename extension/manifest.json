@@ -26,6 +26,8 @@
         "review-panel.js",
         "equation-speech.js",
         "highlighter.js",
+        "notes-anchor.js",
+        "notes-panel.js",
         "content.js"
       ],
       "exclude_matches": [
@@ -42,6 +44,8 @@
         "chatgpt-worker.js",
         "equation-speech.js",
         "highlighter.js",
+        "notes-anchor.js",
+        "notes-panel.js",
         "content.js"
       ],
       "run_at": "document_idle"

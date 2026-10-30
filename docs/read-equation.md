@@ -1,0 +1,9 @@
+# Read Equation
+
+Select supported mathematical text and choose **Read Equation** for local English pronunciation. **Explain equation** is separate: only that explicit click sends a bounded equation and nearby article excerpt to ChatGPT, using the existing provider and owned-chat cleanup pipeline. Accessible LaTeX annotations and common MathML fractions, powers, subscripts and roots are used when the selection belongs to a semantic math container. Unsupported structures return an error rather than silently flattening their meaning. Images, scans, OCR, arbitrary MathML and universal mathematical notation are not supported.
+
+Web context includes the source title/URL, nearby text and up to 12,000 characters centered around the selection in the closest article/main container where possible. This is an excerpt, not guaranteed complete document extraction. The prompt treats source fields as untrusted data and asks for missing definitions to be acknowledged.
+
+Native Chrome PDFs remain in the native viewer. Select text, right-click Word Explainer PDF actions, and use Read Equation. The existing selectionText route exposes no full document body; no upload reader, new host permission, debugger access or PDF fetch was added. For Explain equation, paste nearby PDF text into the context field first. Empty context is rejected. The stored source and user-supplied excerpt are passed with an explicit full-PDF-unavailable scope.
+
+Verification: scripts/test-equations.mjs and scripts/test-pdf-equations.mjs exercise parsing, semantic conversion, bounded context, prompt validation and webpage/PDF routing using mocked Chrome APIs. Existing PDF and paragraph-summary tests also pass. Live ChatGPT, real browser MathJax/KaTeX sites, actual PDF selections and installed speech voices have not been verified in this session.

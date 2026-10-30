@@ -8,7 +8,9 @@ const blob=await rendering.WordReviewPDF.generate(report,makeCanvas);assert.equa
 assert.ok(pdf.startsWith('%PDF-1.4'));const count=Number(pdf.match(/\/Count (\d+)/)[1]);assert.ok(count>1,'Long report must paginate');assert.ok(calls.some(c=>c.direction==='rtl'&&c.value.includes('یہ')));assert.ok(calls.every(c=>c.y<842),'No text can overflow the page');
 const xref=Number(pdf.match(/startxref\n(\d+)/)[1]);assert.equal(new TextDecoder().decode(bytes.slice(xref,xref+4)),'xref');assert.equal(rendering.WordReviewPDF.filename(report.site,report.generatedAt),'word-explainer-docs.example.com-2023-11-14.pdf');
 await assert.rejects(rendering.WordReviewPDF.generate({...report,items:[]},makeCanvas));
-const background=(await Promise.all(['review-store.js','context-store.js','context-controller.js','background.js'].map(name=>fs.readFile(dir+name,'utf8')))).join('\n');
+report.items[0].notes.push({action:'personal',summary:'میرا ذاتی نوٹ',sourceUrl:report.site});
+const notePdf=await rendering.WordReviewPDF.generate(report,makeCanvas);assert.ok(calls.some(c=>c.value==='Personal note - Notes Taken'));assert.ok(calls.some(c=>c.value.includes('میرا')));
+const background=(await Promise.all(['notes-store.js','review-store.js','context-store.js','context-controller.js','background.js'].map(name=>fs.readFile(dir+name,'utf8')))).join('\n');
 let handler;const local={wordReviewPagesV1:[{url:report.site,items:report.items}]},session={activeExplanationJob:{keep:true}},opened=[];
 const chrome={runtime:{id:'test',getURL:path=>'chrome-extension://test/'+path,onMessage:{addListener:fn=>handler=fn}},storage:{local:{get:async()=>local},session:{get:async()=>session,set:async value=>Object.assign(session,value),remove:async keys=>{for(const key of Array.isArray(keys)?keys:[keys])delete session[key]}}},tabs:{onRemoved:{addListener(){}},create:async value=>{opened.push(value);return{id:9}}},commands:{onCommand:{addListener(){}}},alarms:{onAlarm:{addListener(){}}}};
 vm.runInNewContext(background,{chrome,URL,Date,setTimeout,clearTimeout,crypto:{randomUUID:()=> 'export-test-id'}});

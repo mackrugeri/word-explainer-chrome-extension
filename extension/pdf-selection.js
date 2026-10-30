@@ -68,19 +68,20 @@
           respond(await capture(record));return;
         }
         if(message.type!=="PDF_PANEL_RUN")throw new Error("Unsupported PDF action.");
-        if(!["translate","explain"].includes(message.action)||!/^[a-zA-Z0-9-]{8,100}$/.test(message.requestId||""))throw new Error("Choose a PDF action again.");
+        if(!["translate","explain","equation"].includes(message.action)||!/^[a-zA-Z0-9-]{8,100}$/.test(message.requestId||""))throw new Error("Choose a PDF action again.");
         if(!["chatgpt","gemini"].includes(message.provider))throw new Error("Choose ChatGPT or Gemini.");
         if(!["Urdu","English","Arabic","French","Spanish"].includes(message.language))throw new Error("Choose a supported language in settings.");
         const record=await update(message.tabId,current=>{
           if(!current||current.id!==message.selectionId)throw new Error("The selection changed. Select the PDF text again.");
-          if(current.text.length>1000)throw new Error("Select up to 1,000 characters for translation or AI explanation.");
+          if(message.action==="equation")WordEquationSpeech.prompt({equation:current.text,context:message.context});
+          if(current.text.length>(message.action==="equation"?4000:1000))throw new Error("Select up to 1,000 characters for translation or AI explanation.");
           current.requests[message.action]=message.requestId;
           current.results[message.action]={type:"EXPLANATION_PROGRESS",requestId:message.requestId,stage:message.action==="translate"?"Translating…":"Asking "+(message.provider==="gemini"?"Gemini":"ChatGPT")+"…"};return current;
         });
         respond({ok:true,accepted:true});
         const work=message.action==="translate"
           ? translate(record.text,message.language,message.requestId,message.tabId).then(text=>notify(message.tabId,{type:"EXPLANATION_RESULT",requestId:message.requestId,ok:true,text}))
-          : start(record.text,message.tabId,message.requestId,message.provider,{surface:"pdf-panel"});
+          : start(record.text,message.tabId,message.requestId,message.action==="equation"?"chatgpt":message.provider,{surface:"pdf-panel",...(message.action==="equation"?{task:"equation",equationData:{equation:record.text,context:message.context,title:record.title,url:record.url,scope:"user supplied PDF excerpt; full PDF unavailable"}}:{})});
         work.catch(error=>notify(message.tabId,{type:"EXPLANATION_RESULT",requestId:message.requestId,ok:false,error:error.message})).catch(()=>{});
       })().catch(error=>respond({ok:false,error:error.message||"PDF actions are unavailable. Retry."}));
       return true;

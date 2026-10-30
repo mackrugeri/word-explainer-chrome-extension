@@ -80,7 +80,13 @@
         const owner = node.closest?.('[role="menuitem"]') || node;
         if (!actions.has(owner) || node.tagName === 'BUTTON') actions.set(owner, node);
       }
-      return actions.size === 1 ? [...actions.values()][0] : null;
+      // A role=menuitem can itself contain another role=menuitem. closest()
+      // returns each node itself, so merge containment chains as one action.
+      // Sibling Delete items remain ambiguous and must never be guessed at.
+      const entries = [...actions.entries()];
+      const leaves = entries.filter(([owner]) => !entries.some(([other]) =>
+        owner !== other && owner.contains?.(other)));
+      return leaves.length === 1 ? leaves[0][1] : null;
     };
     menu.focus?.({preventScroll:true});
     let option = null;

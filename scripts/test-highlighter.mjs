@@ -50,20 +50,20 @@ try {
   window.chrome={runtime:{id:'test',onMessage:{addListener(fn){window.selectionHandler=fn;}},sendMessage:async()=>({})},storage:{local:{get:async defaults=>defaults},onChanged:{addListener(){}}}};
  });
  await page.addScriptTag({content:await fs.readFile(new URL('../extension/content.js',import.meta.url),'utf8')});
- await page.evaluate(()=>{
+ await page.evaluate(async()=>{
   const r=document.createRange();r.selectNodeContents(document.getElementById('sample'));
   getSelection().removeAllRanges();getSelection().addRange(r);
   selectionHandler({type:'SHOW_SELECTION_MENU'},{id:'test'},()=>{});
   const root=window.popupRoot, colors=root.getElementById('highlight-colors').children;
   if(colors.length!==10||colors[0].disabled)throw new Error('picker unavailable');
   getSelection().removeAllRanges(); // Popup actions must use the saved range.
-  colors[0].click();
+  colors[0].click();await new Promise(resolve=>setTimeout(resolve,0));
   if(!CSS.highlights.has('word-explainer-green'))throw new Error('picker did not paint saved selection');
   if(colors[0].getAttribute('aria-pressed')!=='true'||colors[0].textContent!=='✓')throw new Error('active color missing');
-  colors[3].click();
+  colors[3].click();await new Promise(resolve=>setTimeout(resolve,0));
   if(colors[0].getAttribute('aria-pressed')!=='false'||colors[3].getAttribute('aria-pressed')!=='true')throw new Error('active color did not move');
   if(CSS.highlights.has('word-explainer-green')||!CSS.highlights.has('word-explainer-pink'))throw new Error('picker recolor failed');
-  root.getElementById('remove-highlight').click();
+  root.getElementById('remove-highlight').click();await new Promise(resolve=>setTimeout(resolve,0));
   if(CSS.highlights.has('word-explainer-pink'))throw new Error('remove button failed');
  });
  console.log('PASS: popup ten-color picker, saved selection after native selection clears, recolor and remove buttons.');

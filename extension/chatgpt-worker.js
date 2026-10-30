@@ -115,7 +115,7 @@
     }
     if (message.type === "CHATGPT_READY") { sendResponse({ ready: true, build: BUILD }); return; }
     if (message.type === "CHATGPT_START") {
-      if (busy || typeof message.prompt !== "string" || message.prompt.length > (message.task === "context-summary" ? 28000 : message.task === "paragraph-summary" ? 9000 : 2500)) {
+      if (busy || typeof message.prompt !== "string" || message.prompt.length > (["context-summary", "equation"].includes(message.task) ? 28000 : message.task === "paragraph-summary" ? 9000 : 2500)) {
         sendResponse({ accepted: false, error: "ChatGPT is already handling a request or the prompt is invalid." }); return;
       }
       sendResponse({ accepted: true }); // Synchronous acknowledgement, not the answer.

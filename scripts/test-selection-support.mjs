@@ -16,7 +16,7 @@ function collect(referrer='https://www.skills.google/paths/1',editable=false){
 }
 assert.ok(collect().text.includes('BigQuery'));assert.equal(collect('https://unrelated.example'),undefined);assert.equal(collect(undefined,true),undefined);
 
-const bg=(await Promise.all(['review-store.js','context-store.js','context-controller.js','background.js'].map(name=>fs.readFile(new URL(name,dir),'utf8')))).join('\n');
+const bg=(await Promise.all(['notes-store.js','review-store.js','context-store.js','context-controller.js','background.js'].map(name=>fs.readFile(new URL(name,dir),'utf8')))).join('\n');
 let command;const sent=[];let badge='';
 const chrome={runtime:{id:'test',getURL:name=>'chrome-extension://test/'+name,onMessage:{addListener(){}},sendMessage:async msg=>{sent.push(msg);return{ok:true,shown:true,build:'0.4.4'}}},storage:{local:{},session:{}},commands:{onCommand:{addListener:f=>command=f}},alarms:{onAlarm:{addListener(){}}},action:{setBadgeText:async value=>badge=value.text,setTitle:async()=>{}},tabs:{onRemoved:{addListener(){}},sendMessage:async(id,msg,options)=>{sent.push({...msg,options});if(msg.type==='SHOW_SELECTION_MENU')return{ok:true,shown:false,build:'0.4.4',courseFramesAllowed:true};if(msg.type==='COLLECT_COURSE_SELECTION')return{ok:true,text:'BigQuery ML',sourceUrl:'https://storage.googleapis.com/cloud-training/course/index.html',rect:{left:20,top:50,bottom:70}};return{shown:true};}}};
 vm.runInNewContext(bg,{chrome,URL,Date,setTimeout,clearTimeout});await command('show-selection-menu',{id:5,url:'https://www.skills.google/paths/1'});

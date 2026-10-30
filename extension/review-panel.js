@@ -16,7 +16,7 @@
     article{padding:12px 0;border-bottom:1px solid var(--line)}h3{margin:0 0 8px;font-size:14px;overflow-wrap:anywhere}p{margin:4px 0 10px;overflow-wrap:anywhere;white-space:pre-wrap}.label{color:var(--muted);font-size:10px;font-weight:600}
     footer{padding:12px 16px;display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:10px}.clear{border:1px solid var(--line);border-radius:8px;background:var(--soft);color:var(--ink);padding:5px 8px}.status{padding:0 16px;color:var(--muted);font-size:11px}
     @media(prefers-color-scheme:dark){.review{--bg:#18231f;--ink:#edf4ef;--muted:#a5b9ae;--line:#35463b;--green:#a4d7b8;--soft:#202f27}}
-  </style><div class="review"><button class="badge" id="toggle" hidden type="button" aria-expanded="false" aria-controls="panel" title="Click to open · drag to move">✦ Review <span id="count">0</span></button><div class="panel" id="panel" hidden><header><h2>This site · Quick recap</h2><button class="close" id="close" type="button" aria-label="Close review">×</button></header><p class="intro">Up to two short sentences from each completed answer. Longer text is shortened. Concepts stay available across pages on this site.</p><section class="items" id="items" tabindex="0" aria-label="Saved concepts"></section><p class="status" id="status" role="status"></p><footer><button class="clear" id="download" type="button">Download PDF</button><button class="clear" id="clear" type="button">Clear this site’s review</button></footer></div></div>`;
+  </style><div class="review"><button class="badge" id="toggle" hidden type="button" aria-expanded="false" aria-controls="panel" title="Click to open · drag to move">✦ Review <span id="count">0</span></button><div class="panel" id="panel" hidden><header><h2>This site · Quick recap</h2><button class="close" id="close" type="button" aria-label="Close review">×</button></header><p class="intro">Up to two short sentences from each completed answer. Longer text is shortened. Personal notes are included in full. Concepts stay available across pages on this site.</p><section class="items" id="items" tabindex="0" aria-label="Saved concepts"></section><p class="status" id="status" role="status"></p><footer><button class="clear" id="download" type="button">Download PDF</button><button class="clear" id="clear" type="button">Clear AI recap</button></footer></div></div>`;
   document.documentElement.appendChild(host);
   const el = id => root.getElementById(id);
   let page = pageUrl(), epoch = 0, disposed = false, items = [];
@@ -79,7 +79,7 @@
       const heading = document.createElement('h3'); heading.dir = 'auto'; heading.textContent = item.text; article.appendChild(heading);
       for (const note of item.notes || []) {
         const label = document.createElement('div'); label.className = 'label';
-        label.textContent = note.action === 'translate' ? `Translation · ${note.language}` : `${note.provider === 'gemini' ? 'Gemini' : 'ChatGPT'} · Explanation`;
+        label.textContent = note.action === 'personal' ? 'Personal note · Notes Taken' : note.action === 'translate' ? `Translation · ${note.language}` : `${note.provider === 'gemini' ? 'Gemini' : 'ChatGPT'} · Explanation`;
         const body = document.createElement('p'); body.dir = 'auto'; body.textContent = note.summary;
         article.appendChild(label); article.appendChild(body);
       }
@@ -125,7 +125,7 @@
     }
   };
   chrome.storage?.onChanged?.addListener((changes, area) => {
-    if (area === 'local' && changes.wordReviewPagesV1 && !disposed) load();
+    if (area === 'local' && (changes.wordReviewPagesV1 || changes.wordPersonalNotesV1) && !disposed) load();
   });
   load();
 })();

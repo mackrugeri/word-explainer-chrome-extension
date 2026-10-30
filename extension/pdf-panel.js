@@ -6,7 +6,7 @@
     el("empty").hidden=!!record;el("workspace").hidden=!record;if(!record)return;
     el("selection").textContent=record.text;
     try{el("source").textContent=new URL(record.url).hostname||"Local PDF";}catch{el("source").textContent="PDF selection";}
-    for(const [action,prefix] of [["translate","translation"],["explain","explanation"]]){
+    for(const [action,prefix] of [["translate","translation"],[(latest==="equation"||!latest&&record.results.equation)?"equation":"explain","explanation"]]){
       const result=record.results[action],section=el(prefix+"-section");section.hidden=!result;
       el(prefix+"-status").textContent=result?.error||result?.warning||(result?.type==="EXPLANATION_RESULT"?"":result?.stage||"Receiving…");
       el(prefix+"-answer").textContent=result?.text||"";
@@ -14,8 +14,8 @@
       else if(latest)section.open=false;
     }
     el("translate").disabled=!!record.results.translate&&record.results.translate.type!=="EXPLANATION_RESULT";
-    const aiBusy=!!record.results.explain&&record.results.explain.type!=="EXPLANATION_RESULT";
-    for(const id of ["ask","chatgpt","gemini"])el(id).disabled=aiBusy;
+    const aiBusy=[record.results.explain,record.results.equation].some(result=>result&&result.type!=="EXPLANATION_RESULT");
+    for(const id of ["ask","chatgpt","gemini","equation-explain"])el(id).disabled=aiBusy;
     el("translation-answer").style.fontSize=`${Math.min(32,Math.max(14,Number(settings.translationFontSize)||20))}px`;
     el("listen-translation").hidden=!record.results.translate?.text;
   }
@@ -27,7 +27,7 @@
       const result=await chrome.runtime.sendMessage({type:"PDF_PANEL_GET",tabId:id});
       if(ticket!==epoch)return;
       if(!result?.ok)throw new Error(result?.error||"Could not load the PDF selection.");
-      if(id!==tabId||record?.id!==result.record?.id){speechSynthesis.cancel();latest=null;el("notice").textContent="";el("providers").hidden=true;}
+      if(id!==tabId||record?.id!==result.record?.id){speechSynthesis.cancel();latest=null;el("equation-context").value="";el("notice").textContent="";el("providers").hidden=true;}
       tabId=id;record=result.record;render();
     }catch(error){if(ticket===epoch)el("notice").textContent=error.message;}
   }
@@ -36,7 +36,7 @@
     const id=record.id;latest=action;el("providers").hidden=true;
     el("notice").textContent="";
     try{
-      const reply=await chrome.runtime.sendMessage({type:"PDF_PANEL_RUN",tabId,selectionId:id,action,provider,language:settings.translationLanguage,requestId:crypto.randomUUID()});
+      const reply=await chrome.runtime.sendMessage({type:"PDF_PANEL_RUN",tabId,selectionId:id,action,provider,language:settings.translationLanguage,context:el("equation-context").value,requestId:crypto.randomUUID()});
       if(!reply?.accepted)throw new Error(reply?.error||"The request could not start.");
       await refresh();
     }catch(error){el("notice").textContent=error.message;}
@@ -61,6 +61,7 @@
   el("equation").addEventListener("click",()=>{
     const result=WordEquationSpeech.toSpeech(record?.text||"");el("notice").textContent=result.ok?result.text:result.error;if(result.ok)speak(result.text,"en-US");
   });
+  el("equation-explain").addEventListener("click",()=>run("equation","chatgpt"));
   el("translate").addEventListener("click",()=>run("translate"));
   el("ask").addEventListener("click",()=>{el("providers").hidden=!el("providers").hidden;});
   el("chatgpt").addEventListener("click",()=>run("explain","chatgpt"));

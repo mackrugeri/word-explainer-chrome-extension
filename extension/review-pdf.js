@@ -47,7 +47,7 @@
     report.items.forEach((item,index)=>{
       blocks.push({value:`${index+1}. ${text(item.text)}`,size:13,bold:true,gap:8,keep:45});
       for(const note of item.notes||[]){
-        const label=note.action==="translate"?`Translation - ${text(note.language)}`:`${note.provider==="gemini"?"Gemini":"ChatGPT"} explanation`;
+        const label=note.action==="personal"?"Personal note - Notes Taken":note.action==="translate"?`Translation - ${text(note.language)}`:`${note.provider==="gemini"?"Gemini":"ChatGPT"} explanation`;
         blocks.push({value:label,size:9,bold:true,color:"#16654f",gap:4});
         blocks.push({value:note.summary,size:11,gap:8});
         if(note.sourceUrl)blocks.push({value:`Source: ${text(note.sourceUrl)}`,size:8,color:"#61756f",gap:3});
@@ -70,7 +70,7 @@
       ctx.setTransform(2,0,0,2,0,0);ctx.fillStyle="#ffffff";ctx.fillRect(0,0,W,H);
       ctx.direction="ltr";ctx.textAlign="left";ctx.textBaseline="top";
       ctx.fillStyle="#16654f";ctx.font=font(10,true);ctx.fillText("WORD EXPLAINER / REVIEW",M,28);
-      ctx.fillStyle="#19332e";ctx.font=font(21,true);ctx.fillText("Your saved summaries",M,45);
+      ctx.fillStyle="#19332e";ctx.font=font(21,true);ctx.fillText("Your saved summaries and notes",M,45);
       ctx.fillStyle="#61756f";ctx.font=font(9);ctx.fillText(`${new URL(report.site).hostname} - ${report.items.length} concepts`,M,74);
       for(const line of pages[i]){
         const rtl=/[\u0590-\u08ff]/.test(line.value);ctx.direction=rtl?"rtl":"ltr";ctx.textAlign=rtl?"right":"left";

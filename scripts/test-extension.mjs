@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import vm from 'node:vm';
 import assert from 'node:assert/strict';
 const dir=new URL('../extension/', import.meta.url).pathname;
-const bg=(await Promise.all(['review-store.js','context-store.js','context-controller.js','background.js'].map(name=>fs.readFile(dir+name,'utf8')))).join('\n');
+const bg=(await Promise.all(['notes-store.js','review-store.js','context-store.js','context-controller.js','background.js'].map(name=>fs.readFile(dir+name,'utf8')))).join('\n');
 const worker=await fs.readFile(dir+'chatgpt-worker.js','utf8');
 const content=await fs.readFile(dir+'content.js','utf8');
 for(const name of ['background.js','pdf-selection.js','pdf-panel.js','chatgpt-worker.js','chat-cleanup.js','gemini-worker.js','review-panel.js','review-pdf.js','review-export.js','highlighter.js','paragraph-summary.js','review-store.js','context-store.js','context-controller.js','context-graph.js','contexts.js','content.js','options.js','popup.js'])new vm.Script(await fs.readFile(dir+name,'utf8'));

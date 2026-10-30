@@ -1,0 +1,27 @@
+import fs from 'node:fs/promises';
+import vm from 'node:vm';
+import assert from 'node:assert/strict';
+const dir=new URL('../extension/',import.meta.url).pathname;
+const code=await fs.readFile(dir+'pdf-selection.js','utf8');
+new vm.Script(await fs.readFile(dir+'pdf-panel.js','utf8'));
+let clicked,installed,removed,updated;const store={},order=[],started=[],translated=[],warnings=[],captured=[];
+const chrome={runtime:{id:'test',getURL:path=>'chrome-extension://test/'+path,onInstalled:{addListener:f=>installed=f},onStartup:{addListener(){}},lastError:null},contextMenus:{remove(id,fn){fn()},create(properties,fn){assert.equal(properties.contexts[0],'selection');fn()},onClicked:{addListener:f=>clicked=f}},sidePanel:{open:async opts=>{order.push(['open',opts.tabId])}},storage:{session:{get:async key=>{order.push(['get',key]);return structuredClone(store)},set:async obj=>Object.assign(store,structuredClone(obj)),remove:async key=>delete store[key]}},tabs:{get:async id=>({id}),onRemoved:{addListener:f=>removed=f},onUpdated:{addListener:f=>updated=f}}};
+let serial=0;const ctx={chrome,URL,crypto:{randomUUID:()=>`selection-${++serial}`}};vm.runInNewContext(await fs.readFile(dir+'equation-speech.js','utf8'),ctx);vm.runInNewContext(code,ctx);
+const make=()=>ctx.WordPDFSelection.create({chrome,translate:async(...args)=>{translated.push(args);return 'ترجمہ'},start:async(...args)=>{started.push(args)},feedback:(...args)=>warnings.push(args),capture:async record=>{captured.push(structuredClone(record));return {ok:true}}});
+let service=make();installed();
+const flush=async()=>{for(let i=0;i<20;i++)await new Promise(setImmediate)};
+const panel={id:'test',url:'chrome-extension://test/pdf-panel.html'};
+const send=(message,sender=panel)=>new Promise(resolve=>service.handle(message,sender,resolve));
+clicked({menuItemId:'word-pdf-selection',selectionText:' alpha + beta ',pageUrl:'https://example.org/download?id=1'},{id:5});
+assert.equal(order[0][0],'open','The panel must open before any await loses the menu user gesture');await flush();
+let record=(await send({type:'PDF_PANEL_GET',tabId:5})).record;assert.equal(record.text,'alpha + beta');assert.equal((await send({type:'PDF_PANEL_CONTEXT',tabId:5,selectionId:record.id})).ok,true);assert.equal(captured[0].url,'https://example.org/download?id=1');assert.equal(captured[0].text,'alpha + beta');assert.equal((await send({type:'PDF_PANEL_CONTEXT',tabId:5,selectionId:'outdated'})).ok,false);assert.equal(translated.length,0);assert.equal(started.length,0,'Opening does not send text externally');
+
+const request={type:'PDF_PANEL_RUN',tabId:5,selectionId:record.id,action:'equation',provider:'gemini',language:'Urdu',requestId:'equation-123'};
+assert.equal((await send(request)).ok,false);assert.equal(started.length,0);
+assert.equal((await send({...request,context:'Alpha is the absorption coefficient and beta is the scattering coefficient.'})).accepted,true);await flush();
+assert.equal(started[0][3],'chatgpt');assert.equal(started[0][4].task,'equation');assert.equal(started[0][4].surface,'pdf-panel');
+assert.ok(started[0][4].equationData.scope.includes('full PDF unavailable'));assert.equal(started[0][4].equationData.url,record.url);
+await service.notify(5,{type:'EXPLANATION_RESULT',requestId:'equation-123',ok:true,text:'Contextual meaning'});
+record=(await send({type:'PDF_PANEL_GET',tabId:5})).record;assert.equal(record.results.equation.text,'Contextual meaning');
+assert.equal((await send({...request,context:'x'.repeat(12001)})).ok,false);
+console.log('PASS: PDF equation requires context, defaults to ChatGPT, retains source and excerpt scope, isolates equation result.');
