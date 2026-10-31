@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Word Explainer",
-  "version": "0.4.4",
+  "version": "0.4.8",
   "description": "Pronounce, translate, or ask ChatGPT or Gemini about selected text.",
   "permissions": [
     "storage",
@@ -23,12 +23,16 @@
         "https://*/*"
       ],
       "js": [
+        "theme.js",
+        "ui-icons.js",
         "review-panel.js",
         "rich-response.js",
         "equation-speech.js",
         "highlighter.js",
         "notes-anchor.js",
         "notes-panel.js",
+        "math-selection.js",
+        "selection-launcher.js",
         "content.js"
       ],
       "exclude_matches": [
@@ -41,6 +45,8 @@
         "https://chatgpt.com/*"
       ],
       "js": [
+        "theme.js",
+        "ui-icons.js",
         "chat-cleanup.js",
         "rich-response.js",
         "chatgpt-worker.js",
@@ -48,6 +54,8 @@
         "highlighter.js",
         "notes-anchor.js",
         "notes-panel.js",
+        "math-selection.js",
+        "selection-launcher.js",
         "content.js"
       ],
       "run_at": "document_idle"

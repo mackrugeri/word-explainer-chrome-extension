@@ -1,9 +1,15 @@
 (() => {
   const el=id=>document.getElementById(id);
+  globalThis.WordUIIcons?.decorate(document);
   if(globalThis.WordRichResponse){const style=document.createElement("style");style.textContent=WordRichResponse.css;document.head.appendChild(style);}
-  let tabId=null,record=null,epoch=0,settings={language:"en-US",rate:1,translationLanguage:"Urdu",translationFontSize:20},latest=null;
+  let tabId=null,record=null,epoch=0,settings={language:"en-US",rate:1,translationLanguage:"Urdu",translationFontSize:20,readingMode:"reading"},latest=null;
   const languages={Urdu:"ur-PK",English:"en-US",Arabic:"ar",French:"fr-FR",Spanish:"es-ES"};
+  function applyReadingMode(){
+    const math=settings.readingMode==="math";el("reading-mode").setAttribute("aria-pressed",String(!math));el("math-mode").setAttribute("aria-pressed",String(math));el("equation").hidden=!math;el("paper-explanation").hidden=!math;
+  }
+  for(const [id,mode]of [["reading-mode","reading"],["math-mode","math"]])el(id).addEventListener("click",async()=>{settings.readingMode=mode;render();try{await chrome.storage.local.set({readingMode:mode});}catch{el("notice").textContent="Mode changed; could not save this preference.";}});
   function render() {
+    applyReadingMode();
     el("empty").hidden=!!record;el("workspace").hidden=!record;if(!record)return;
     el("selection").textContent=record.text;
     try{el("source").textContent=new URL(record.url).hostname||"Local PDF";}catch{el("source").textContent="PDF selection";}
@@ -18,6 +24,7 @@
     el("translate").disabled=!!record.results.translate&&record.results.translate.type!=="EXPLANATION_RESULT";
     const aiBusy=[record.results.explain,record.results["paper-explanation"],record.results.summarize].some(result=>result&&result.type!=="EXPLANATION_RESULT");
     for(const id of ["ask","chatgpt","gemini","paper-explanation","summarize"])el(id).disabled=aiBusy;
+    if(globalThis.WordMathSelection&&!WordMathSelection.isMath(record.text))el("paper-explanation").disabled=true;
     el("translation-answer").style.fontSize=`${Math.min(32,Math.max(14,Number(settings.translationFontSize)||20))}px`;
     el("listen-translation").hidden=!record.results.translate?.text;
   }
@@ -35,6 +42,7 @@
   }
   async function run(action,provider="chatgpt") {
     if(!record)return;
+    if(action==="paper-explanation"&&globalThis.WordMathSelection&&!WordMathSelection.isMath(record.text)){el("notice").textContent="Select a mathematical equation first.";return;}
     const id=record.id;latest=action;el("providers").hidden=true;
     el("notice").textContent="";
     try{

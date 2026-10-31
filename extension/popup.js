@@ -20,3 +20,5 @@ contextsButton.addEventListener("click",async()=>{
   catch{popupStatus.textContent="Could not open contexts. Reload the extension and retry.";popupStatus.hidden=false;}
   finally{contextsButton.disabled=false;}
 });
+
+globalThis.WordUIIcons?.decorate(document);

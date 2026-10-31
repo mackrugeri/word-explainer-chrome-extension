@@ -1,6 +1,6 @@
 // UI automation only; never reads account cookies or existing user conversations.
 (() => {
-  const BUILD = "0.4.4";
+  const BUILD = "0.4.8";
   let busy = false;
   let cleanupEligible = false;
   let ownedPrompt = "";
@@ -99,7 +99,7 @@
         if (!resume) await prepareAndSend(prompt);
         else progress("Reconnected · reading ChatGPT's answer…");
         cleanupEligible = task === "explain";
-        const answer = await readAnswer(["context-summary","paper-explanation"].includes(task) ? 12000 : 2000);
+        const answer = await readAnswer(["context-summary","paper-explanation","whole-page-summary","page-references"].includes(task) ? 12000 : 2000);
         await emit({ type: "CHATGPT_RESULT", ok: true, ...answer, cleanupPath: cleanupEligible ? location.pathname : undefined });
       } catch (error) { await emit({ type: "CHATGPT_RESULT", ok: false, error: error.message }); }
       finally { clearInterval(heartbeat); heartbeat = null; busy = false; }
@@ -117,7 +117,7 @@
     }
     if (message.type === "CHATGPT_READY") { sendResponse({ ready: true, build: BUILD }); return; }
     if (message.type === "CHATGPT_START") {
-      if (busy || typeof message.prompt !== "string" || message.prompt.length > (message.task === "paper-explanation" ? 80000 : message.task === "context-summary" ? 28000 : message.task === "paragraph-summary" ? 9000 : 2500)) {
+      if (busy || typeof message.prompt !== "string" || message.prompt.length > (["whole-page-summary","page-references"].includes(message.task) ? 6000 : message.task === "paper-explanation" ? 80000 : message.task === "context-summary" ? 28000 : message.task === "paragraph-summary" ? 9000 : 2500)) {
         sendResponse({ accepted: false, error: "ChatGPT is already handling a request or the prompt is invalid." }); return;
       }
       sendResponse({ accepted: true }); // Synchronous acknowledgement, not the answer.

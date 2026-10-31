@@ -1,6 +1,6 @@
 (() => {
   const el=id=>document.getElementById(id);
-  const labels={review:'Review summaries',notes:'Personal notes',highlights:'Text highlights'};
+  const labels={review:'Review summaries',notes:'Personal notes',highlights:'Text highlights',pageSummaries:'Page summaries',pageReferences:'Reference lists'};
   let busy=false;
   const size=value=>value<1024?`${value} B`:value<1048576?`${(value/1024).toFixed(1)} KB`:`${(value/1048576).toFixed(2)} MB`;
   function node(tag,text,className){const item=document.createElement(tag);if(text!==undefined)item.textContent=text;if(className)item.className=className;return item;}
@@ -32,11 +32,12 @@
     el('storage-settings').textContent=`${report.preferences.count} saved preferences · about ${size(report.preferences.bytes)}. Language, voice speed, text size and explanation preferences are kept. Change them with Save settings above.`;
     el('storage-other').replaceChildren();for(const item of report.others)el('storage-other').append(node('li',`${item.key} · about ${size(item.bytes)} · managed data, kept for compatibility`));
     if(!report.others.length)el('storage-other').append(node('li','No additional local data.'));
+    globalThis.WordUIIcons?.decorate(el('storage-sites'));
   }
   async function refresh(){if(busy)return;setBusy(true);try{render(await request({type:'STORAGE_INSPECT'}));el('storage-status').textContent='Storage list is up to date.';}catch(error){el('storage-status').textContent=error.message;}finally{setBusy(false);}}
   async function remove(site,category){
     if(busy)return;
-    const what=category==='all'?'all highlights, personal notes and Review summaries':labels[category].toLowerCase();
+    const what=category==='all'?'all highlights, notes, summaries and reference lists':labels[category].toLowerCase();
     if(!confirm(`Remove ${what} for ${site}? This cannot be undone. Settings and shared research contexts will be kept.`))return;
     setBusy(true);el('storage-status').textContent='Removing saved data…';
     try{render(await request({type:'STORAGE_CLEAR_SITE',site,category}));el('storage-status').textContent=`Removed ${what} for ${site}. Settings and shared contexts were kept.`;}

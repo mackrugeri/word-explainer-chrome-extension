@@ -109,7 +109,7 @@
     };
     menu.focus?.({preventScroll:true});
     let option = null;
-    if (menu.getAttribute?.('aria-expanded') === 'true') option = await waitFor(findDelete, 1000);
+    if (menu.getAttribute?.('aria-expanded') === 'true') option = await waitFor(findDelete, 3500);
     else {
       // Some menus open on pointerdown; an additional click can immediately
       // toggle them closed. Only try click if pointerdown did not open a menu.
@@ -117,12 +117,18 @@
       menu.dispatchEvent(new PointerEvent('pointerdown',pointer));
       menu.dispatchEvent(new PointerEvent('pointerup',{...pointer,buttons:0}));
       option = await waitFor(findDelete, 700);
-      if (!option && menu.getAttribute?.('aria-expanded') !== 'true' && !visibleMenus().length) {
+      // The trigger can report expanded before its portaled menu mounts.
+      // Do not exit after the short pointer probe, or click an already-open
+      // trigger and toggle it closed. Wait for the actions to become ready.
+      if (!option && (menu.getAttribute?.('aria-expanded') === 'true' || visibleMenus().length)) {
+        option = await waitFor(findDelete, 3500);
+      } else if (!option) {
         if (location.pathname !== path) return { deleted: false, error: 'The conversation changed before cleanup.' };
         menu.click(); option = await waitFor(findDelete);
       }
     }
     if (location.pathname !== path) return { deleted: false, error: 'The conversation changed before choosing Delete.' };
+    if (!option) option = findDelete();
     if (!option) {
       const menus=visibleMenus();
       const opened=menus.length>0||menu.getAttribute?.('aria-expanded')==='true';

@@ -139,4 +139,5 @@
     if (draftId) { const data = await send('CONTEXT_DRAFT', { draftId }); draft = data.draft; if (!draft) status('The selection expired. Select it again on the source page.'); }
     await load();
   })().catch(error => status(error.message));
+  globalThis.WordUIIcons?.decorate(document);
 })();

@@ -1,17 +1,22 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><title>Word Explainer</title><link rel="stylesheet" href="popup.css"></head>
+<head><meta charset="utf-8"><title>Word Explainer</title><link rel="stylesheet" href="popup.css"><link rel="stylesheet" href="ui-theme.css"><script src="theme.js"></script><script src="ui-icons.js"></script></head>
 <body>
-<header><span class="mark" aria-hidden="true">W</span><div><h1>Word Explainer</h1><p>A little clarity, right here.</p></div></header>
+<header><span class="mark" aria-hidden="true">W</span><div><h1>Word Explainer</h1><p>Reading tools</p></div></header>
 <main>
-<h2>Start with a selection.</h2><p class="intro">Listen to a word, translate a sentence, or ask ChatGPT for a short explanation.</p>
-<ol><li><span class="step">1</span><span>Highlight text on a web page.</span></li><li><span class="step">2</span><span>Open the panel with your shortcut.</span></li><li><span class="step">3</span><span>Choose Listen, Translate, or Ask to ChatGPT.</span></li></ol>
+<div id="popup-home">
+<h2>Tools for your selection.</h2><p class="intro">Select text to listen, translate, explain or save a note.</p>
+<ol><li><span class="step">1</span><span>Highlight text on a web page.</span></li><li><span class="step">2</span><span>Click the selection icon or use your shortcut.</span></li><li><span class="step">3</span><span>Choose an action in the panel.</span></li></ol>
 <div class="shortcuts"><div><span>Mac</span><span><kbd>⌘</kbd> <kbd>⇧</kbd> <kbd>Y</kbd></span></div><div><span>Windows / Linux</span><span><kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>Y</kbd></span></div></div>
-<button id="contexts" type="button">Open cross-page contexts ↗</button>
+<button id="page-summary" type="button" title="Send this page’s URL to ChatGPT for a full-page summary">Whole page summary</button>
+<button id="page-references" type="button" title="Send this page’s URL to ChatGPT to research related sources">Find references</button>
+<button id="contexts" type="button">Research contexts ↗</button>
 <button id="settings" type="button">Open settings <span aria-hidden="true">↗</span></button>
 <p id="popup-status" role="status" aria-live="polite" hidden></p>
 <p class="hint">Change the shortcut at <code>chrome://extensions/shortcuts</code>.</p>
+</div><section id="page-summary-view" hidden><div class="summary-toolbar"><button id="page-summary-back" type="button">← Back</button><button id="page-summary-refresh" type="button" hidden>Refresh summary</button></div><p class="eyebrow">Whole page summary</p><h2 id="page-summary-title" tabindex="-1">Whole page summary</h2><a id="page-summary-source" target="_blank" rel="noopener noreferrer"></a><p id="page-summary-status" role="status" aria-live="polite"></p><div id="page-summary-answer"></div></section>
+<section id="references-view" hidden><div class="summary-toolbar"><button id="references-back" type="button">← Back</button><button id="references-refresh" type="button" hidden>Search again</button></div><p class="eyebrow">Related reading · Up to 10 sources</p><h2 id="references-title" tabindex="-1">References for this page</h2><a id="references-source" target="_blank" rel="noopener noreferrer"></a><p id="references-status" role="status" aria-live="polite"></p><p class="references-provenance">Sources and access claims are reported by ChatGPT; the extension does not independently verify them. The research chat stays open.</p><p id="references-note"></p><ol id="references-list"></ol></section>
 </main>
 <footer>After an update, refresh your web page. Chrome's internal pages are unsupported.</footer>
-<script src="popup.js"></script>
+<script src="rich-response.js"></script><script src="popup.js"></script><script src="popup-page-summary.js"></script><script src="page-references.js"></script><script src="popup-page-references.js"></script>
 </body></html>

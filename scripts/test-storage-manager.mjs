@@ -27,4 +27,7 @@ reply=await send({type:'STORAGE_INSPECT'},{id:'test',url:'chrome-extension://tes
 for(const sender of [{id:'test',url:'https://example.com/'},{id:'test',url:'chrome-extension://test/contexts.html'}]){reply=await send({type:'STORAGE_CLEAR_SITE',site:b,category:'all'},sender);assert.equal(reply.ok,false);}
 assert.ok(data['wordHighlightsV1:'+b+'/one'],'Untrusted requests do not mutate data');
 reply=await send({type:'STORAGE_CLEAR_SITE',site:b,category:'all'},{id:'test',url:'chrome-extension://test/options.html'});assert.equal(reply.ok,true);assert.ok(!data['wordHighlightsV1:'+b+'/one']);assert.equal(data.language,'ur-PK');assert.deepEqual(data.wordContextsV1,initial.wordContextsV1);
+data.wordPageReferencesV1=[{url:a+'/one',title:'A references',text:'{}',status:'complete'},{url:b+'/one',title:'B references',text:'{}',status:'complete'}];
+assert.equal((await manager.inspect()).sites.find(site=>site.origin===a).pageReferences.count,1);
+await manager.clear(a,'pageReferences');assert.equal(data.wordPageReferencesV1.length,1);assert.equal(data.wordPageReferencesV1[0].url,b+'/one');
 console.log('PASS: per-site inventory, Unicode byte accounting, note/review/highlight counts, exact-origin/subdomain isolation, category and site cleanup, shared contexts/preferences/unknown-data preservation, invalid actions and trusted Settings-only boundary.');
