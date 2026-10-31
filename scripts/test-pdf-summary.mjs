@@ -1,0 +1,16 @@
+import fs from 'node:fs/promises';import vm from 'node:vm';import assert from 'node:assert/strict';
+const dir=new URL('../extension/',import.meta.url),source=await fs.readFile(new URL('pdf-selection.js',dir),'utf8');
+let click;const data={},starts=[];
+const chrome={runtime:{id:'test',getURL:name=>'chrome-extension://test/'+name,onInstalled:{addListener(){}},onStartup:{addListener(){}}},contextMenus:{onClicked:{addListener:fn=>click=fn}},sidePanel:{open:async()=>{}},tabs:{get:async()=>({id:5}),onRemoved:{addListener(){}},onUpdated:{addListener(){}}},storage:{session:{get:async()=>structuredClone(data),set:async value=>Object.assign(data,structuredClone(value)),remove:async key=>delete data[key]}}};
+const ctx={chrome,URL,crypto:{randomUUID:()=> 'selection'}};vm.runInNewContext(source,ctx);
+const service=ctx.WordPDFSelection.create({chrome,start:async(...args)=>starts.push(args),feedback(){}}),sender={id:'test',url:'chrome-extension://test/pdf-panel.html'};
+const flush=async()=>{for(let i=0;i<20;i++)await new Promise(setImmediate)};const send=message=>new Promise(resolve=>service.handle({tabId:5,...message},sender,resolve));
+click({menuItemId:'word-pdf-selection',selectionText:'A full paragraph. '.repeat(120),pageUrl:'file:///tmp/paper.pdf'},{id:5});await flush();
+let record=(await send({type:'PDF_PANEL_GET'})).record;assert.equal(starts.length,0);
+assert.equal((await send({type:'PDF_PANEL_RUN',selectionId:record.id,action:'summarize',provider:'gemini',language:'Urdu',requestId:'summary-123'})).accepted,true);await flush();
+assert.equal(starts[0][0],record.text);assert.equal(starts[0][3],'chatgpt');assert.equal(starts[0][4].task,'paragraph-summary');assert.equal(starts[0][4].surface,'pdf-panel');
+await service.notify(5,{type:'EXPLANATION_PARTIAL',requestId:'summary-123',text:'Summary partial'});await service.notify(5,{type:'EXPLANATION_RESULT',requestId:'summary-123',ok:true,text:'Summary final'});
+record=(await send({type:'PDF_PANEL_GET'})).record;assert.equal(record.results.summarize.text,'Summary final');assert.equal(record.results.explain,undefined);
+assert.equal((await send({type:'PDF_PANEL_RUN',selectionId:'old',action:'summarize',provider:'chatgpt',language:'Urdu',requestId:'summary-old'})).ok,false);
+const restarted=ctx.WordPDFSelection.create({chrome,start:async()=>{},feedback(){}});let result;await restarted.handle({type:'PDF_PANEL_GET',tabId:5},sender,value=>result=value);await flush();assert.equal(result.record.results.summarize.text,'Summary final');
+console.log('PASS: PDF Summarize explicit click, complete paragraph beyond 1000 characters, local PDF support, ChatGPT default, distinct/retained summary results, stale-selection rejection and service restart.');

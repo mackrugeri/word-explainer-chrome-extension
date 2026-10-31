@@ -69,7 +69,7 @@ async function testPaperBackground(restart=false,action="explain",translationLan
   assert.equal(notifications.at(-1).type,'EXPLANATION_PARTIAL');
   handler({type:prefix+'_RESULT',ok:true,text:'A borrower receives a loan and agrees to repay it.'},{id:'test',tab:{id:77}},()=>{});await flush();
   assert.equal(notifications.at(-1).type,'EXPLANATION_RESULT');assert.equal(notifications.at(-1).requestId,'r1');
-  assert.deepEqual(closed,[77]);assert.equal(store.activeExplanationJob,undefined);
+  assert.deepEqual(closed,[],"Research paper chats stay open");assert.equal(store.activeExplanationJob,undefined);
 }
 
 await testPaperBackground();await testPaperBackground(true);

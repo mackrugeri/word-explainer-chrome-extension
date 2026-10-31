@@ -2,7 +2,17 @@
 (() => {
   const validPath = path => typeof path === 'string' && (location.hostname === 'gemini.google.com' ? /^\/app\/[a-zA-Z0-9-]+\/?$/ : /^\/c\/[a-zA-Z0-9-]+\/?$/).test(path);
   const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
-  const shown = node => node && node.getClientRects().length > 0 && !node.disabled;
+  const shown = node => {
+    if (!node || !node.getClientRects().length || node.disabled || node.getAttribute?.('aria-disabled') === 'true') return false;
+    for (let ancestor=node; ancestor; ancestor=ancestor.parentElement) {
+      if (ancestor.hidden || ancestor.inert || ancestor.getAttribute?.('aria-hidden') === 'true') return false;
+    }
+    if (typeof getComputedStyle === 'function') {
+      const style = getComputedStyle(node);
+      if (style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse') return false;
+    }
+    return true;
+  };
   async function waitFor(read, timeout = 2500) {
     const deadline = Date.now() + timeout;
     while (Date.now() < deadline) { const value = read(); if (value) return value; await pause(150); }
@@ -67,8 +77,11 @@
     // Never act on a menu that was already open for some other row.
     if (visibleMenus().length && menu.getAttribute?.('aria-expanded') !== 'true')
       return { deleted: false, error: 'Another menu was already open. Close it and retry cleanup.' };
+    let matchDiagnostics = '';
     const findDelete = () => {
-      const menus = visibleMenus();
+      const controls = menu.getAttribute?.('aria-controls');
+      const controlled = controls && document.getElementById?.(controls);
+      const menus = controlled && shown(controlled) ? [controlled] : visibleMenus();
       const candidates = menus.length
         ? menus.flatMap(node => [...node.querySelectorAll('[role="menuitem"], button')])
         : [...document.querySelectorAll('[role="menuitem"]')];
@@ -86,6 +99,12 @@
       const entries = [...actions.entries()];
       const leaves = entries.filter(([owner]) => !entries.some(([other]) =>
         owner !== other && owner.contains?.(other)));
+      matchDiagnostics = `menu roots=${menus.length}, candidates=${candidates.length}, exact Delete matches=${actions.size}, distinct Delete actions=${leaves.length}`;
+      if (leaves.length !== 1) {
+        const details = [...new Set(candidates.filter(shown).filter(node => /delete/i.test(deleteLabel(node))).map(node =>
+          `${node.tagName || 'element'}/${node.getAttribute?.('role') || 'no-role'}:${deleteLabel(node).slice(0,45)}`))].slice(0,4);
+        if (details.length) matchDiagnostics += '; ' + details.join(' | ');
+      }
       return leaves.length === 1 ? leaves[0][1] : null;
     };
     menu.focus?.({preventScroll:true});
@@ -109,7 +128,7 @@
       const opened=menus.length>0||menu.getAttribute?.('aria-expanded')==='true';
       const actions=[...new Set((menus.length?menus.flatMap(node=>[...node.querySelectorAll('[role="menuitem"], button')]):[...document.querySelectorAll('[role="menuitem"]')]).filter(shown).map(deleteLabel).filter(Boolean))].slice(0,8).map(label=>label.slice(0,45));
       return { deleted: false, error: opened
-        ? 'The chat menu opened, but no unique Delete action was found. Visible actions: '+(actions.join(', ')||'none')+'.'
+        ? 'The chat menu opened, but no unique Delete action was found. Visible actions: '+(actions.join(', ')||'none')+'. Matcher: '+matchDiagnostics+'.'
         : 'The chat actions menu did not open after pointer and click attempts.' };
     }
     option.click();

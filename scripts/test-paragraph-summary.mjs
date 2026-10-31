@@ -45,7 +45,7 @@ for(const provider of ['chatgpt','gemini']){
  assert.equal(ack.accepted,true);await flush();assert.equal(start.task,'paragraph-summary');assert.equal(start.prompt,prompt);assert.equal(store.activeExplanationJob.expectedPrompt,prompt);
  boot();handler({type:prefix+'_PARTIAL',text:'Partial summary'},{id:'test',tab:{id:88}},()=>{});await flush();assert.equal(notifications.length,0);
  handler({type:prefix+'_PARTIAL',text:'Partial summary'},{id:'test',tab:{id:77}},()=>{});await flush();assert.equal(notifications.at(-1).requestId,'summary');
- handler({type:prefix+'_RESULT',ok:true,text:'Final summary',cleanupPath:provider==='gemini'?'/app/owned':'/c/owned'},{id:'test',tab:{id:77}},()=>{});await flush();assert.equal(notifications.at(-1).text,'Final summary');assert.deepEqual(closed,[77]);assert.equal(store.activeExplanationJob,undefined);
+ handler({type:prefix+'_RESULT',ok:true,text:'Final summary',cleanupPath:provider==='gemini'?'/app/owned':'/c/owned'},{id:'test',tab:{id:77}},()=>{});await flush();assert.equal(notifications.at(-1).text,'Final summary');assert.deepEqual(closed,[],"Summary chats stay open");assert.equal(store.activeExplanationJob,undefined);
  handler({type:'SUMMARIZE_SELECTION',action:'summarize',text:'x'.repeat(8001),requestId:'bad',build:'0.4.4',provider},{id:'test',tab:{id:5}},v=>ack=v);assert.equal(ack.accepted,false);
 }
-console.log('PASS: explicit paragraph prompts, full source, immediate ChatGPT summary, explanation provider choice without automatic requests, both backend provider routes, restart and ownership guards, shared cleanup, independent result sections, reopen, errors and length limits.');
+console.log('PASS: explicit paragraph prompts, full source, immediate ChatGPT summary, explanation provider choice without automatic requests, both backend provider routes, restart and ownership guards, preserved summary chats, independent result sections, reopen, errors and length limits.');

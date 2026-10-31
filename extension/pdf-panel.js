@@ -7,7 +7,7 @@
     el("empty").hidden=!!record;el("workspace").hidden=!record;if(!record)return;
     el("selection").textContent=record.text;
     try{el("source").textContent=new URL(record.url).hostname||"Local PDF";}catch{el("source").textContent="PDF selection";}
-    for(const [action,prefix] of [["translate","translation"],["explain","explanation"],["paper-explanation","paper"]]){
+    for(const [action,prefix] of [["translate","translation"],["explain","explanation"],["paper-explanation","paper"],["summarize","summary"]]){
       const result=record.results[action],section=el(prefix+"-section");section.hidden=!result;
       el(prefix+"-status").textContent=result?.error||result?.warning||(result?.type==="EXPLANATION_RESULT"?"":result?.stage||"Receiving…");
       if(globalThis.WordRichResponse&&action!=="translate")WordRichResponse.render(el(prefix+"-answer"),result?.rich,result?.text||"");
@@ -16,8 +16,8 @@
       else if(latest)section.open=false;
     }
     el("translate").disabled=!!record.results.translate&&record.results.translate.type!=="EXPLANATION_RESULT";
-    const aiBusy=[record.results.explain,record.results["paper-explanation"]].some(result=>result&&result.type!=="EXPLANATION_RESULT");
-    for(const id of ["ask","chatgpt","gemini","paper-explanation"])el(id).disabled=aiBusy;
+    const aiBusy=[record.results.explain,record.results["paper-explanation"],record.results.summarize].some(result=>result&&result.type!=="EXPLANATION_RESULT");
+    for(const id of ["ask","chatgpt","gemini","paper-explanation","summarize"])el(id).disabled=aiBusy;
     el("translation-answer").style.fontSize=`${Math.min(32,Math.max(14,Number(settings.translationFontSize)||20))}px`;
     el("listen-translation").hidden=!record.results.translate?.text;
   }
@@ -65,6 +65,7 @@
   });
   el("translate").addEventListener("click",()=>run("translate"));
   el("paper-explanation").addEventListener("click",()=>run("paper-explanation","chatgpt"));
+  el("summarize").addEventListener("click",()=>run("summarize","chatgpt"));
   el("ask").addEventListener("click",()=>{el("providers").hidden=!el("providers").hidden;});
   el("chatgpt").addEventListener("click",()=>run("explain","chatgpt"));
   el("gemini").addEventListener("click",()=>run("explain","gemini"));

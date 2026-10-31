@@ -85,7 +85,7 @@
       try {
         if (!resume) await prepareAndSend(prompt);
         else progress("Reconnected · reading Gemini's answer…");
-        cleanupEligible = true;
+        cleanupEligible = task === "explain";
         const text = await readAnswer(task === "context-summary" ? 12000 : 2000);
         await emit({ type: "GEMINI_RESULT", ok: true, text, cleanupPath: cleanupEligible ? location.pathname : undefined });
       } catch (error) { await emit({ type: "GEMINI_RESULT", ok: false, error: error.message }); }

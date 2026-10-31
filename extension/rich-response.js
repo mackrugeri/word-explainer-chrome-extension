@@ -3,7 +3,7 @@
 (() => {
   const HTML=new Set('p div span strong b em i u s del blockquote ul ol li h1 h2 h3 h4 h5 h6 pre code br hr table thead tbody tfoot tr th td a sup sub'.split(' '));
   const MATH=new Set('math semantics mrow mi mn mo mtext mspace msup msub msubsup mfrac msqrt mroot mtable mtr mtd mover munder munderover mfenced menclose mpadded mstyle mphantom mmultiscripts mprescripts none'.split(' '));
-  const MATH_ATTRS=new Set('display mathvariant stretchy fence separator accent accentunder linethickness rowalign columnalign columnspan rowspan lspace rspace width height depth notation'.split(' '));
+  const MATH_ATTRS=new Set('display mathvariant stretchy fence separator accent accentunder linethickness rowalign columnalign columnspan rowspan lspace rspace width height depth notation displaystyle scriptlevel largeop movablelimits symmetric rowspacing columnspacing rowlines columnlines equalrows equalcolumns frame framespacing'.split(' '));
   const NS='http://www.w3.org/1998/Math/MathML';
   const safeURL=value=>{try{const url=new URL(value);return ['http:','https:'].includes(url.protocol)?url.href:null;}catch{return null;}};
   function validate(value,maxText=12000){

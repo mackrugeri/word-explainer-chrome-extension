@@ -45,9 +45,10 @@ async function finishJob(tabId, result) {
       try { await contextStore.saveSummary(job.contextId,job,result.text,job.provider); }
       catch(error) { result={ok:false,error:error.message||"The summary could not be saved. Please retry."}; }
     }
-    let keepOpen = false;
+    const shouldCleanup = !job.task || job.task === "explain";
+    let keepOpen = !shouldCleanup;
     const cleanupPathPattern = job.provider === "gemini" ? /^\/app\/[a-zA-Z0-9-]+\/?$/ : /^\/c\/[a-zA-Z0-9-]+\/?$/;
-    if(cleanupPathPattern.test(cleanupPath || "")) {
+    if(shouldCleanup && cleanupPathPattern.test(cleanupPath || "")) {
       let timer, cleanupError="The cleanup did not return a confirmation.";
       try {
         const cleanup = await Promise.race([
@@ -59,7 +60,7 @@ async function finishJob(tabId, result) {
       if(keepOpen)result.warning="Chat cleanup: "+cleanupError+" Answer retained; tab left open for manual cleanup.";
     }
     if(job.task==="context-summary"&&result.ok){
-      try{await contextStore.setCleanup(job.contextId,job.revision,{state:keepOpen?"failed":cleanupPathPattern.test(cleanupPath||"")?"deleted":"not-needed",warning:result.warning||""});}catch{}
+      try{await contextStore.setCleanup(job.contextId,job.revision,{state:!shouldCleanup?"retained":keepOpen?"failed":cleanupPathPattern.test(cleanupPath||"")?"deleted":"not-needed",warning:result.warning||""});}catch{}
     }
     delete result.cleanupPath;
     await chrome.storage.session.remove(JOB_KEY);

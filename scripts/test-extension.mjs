@@ -362,7 +362,7 @@ async function testContextBackground(provider='gemini',cleanupOutcome=null){
   boot();
   await request({type:provider.toUpperCase()+'_RESULT',ok:true,text:'The two paragraphs connect [1][2].',cleanupPath:cleanupOutcome?(provider==='gemini'?'/app/owned-chat':'/c/owned-chat'):undefined},{id:'test',tab:{id:77}});
   assert.equal(saved.wordContextsV1[0].summary.text,'The two paragraphs connect [1][2].');assert.equal(saved.wordContextsV1[0].summary.provider,provider);
-  assert.equal(broadcasts.at(-1).type,'CONTEXT_SUMMARY_RESULT');assert.equal(broadcasts.at(-1).ok,true);assert.deepEqual(closed,cleanupOutcome==='failure'?[]:[77]);if(cleanupOutcome==='failure')assert.ok(broadcasts.at(-1).warning.includes('left open'));
+  assert.equal(broadcasts.at(-1).type,'CONTEXT_SUMMARY_RESULT');assert.equal(broadcasts.at(-1).ok,true);assert.deepEqual(closed,[],'Context summary chats must be retained');assert.equal(broadcasts.at(-1).warning,undefined);assert.equal(saved.wordContextsV1[0].summary.cleanup.state,'retained');
   assert.equal(session.activeExplanationJob,undefined);
   const firstCapture=await request({type:'CONTEXT_CREATE',name:'Initial selection',draftId:secondDraft});
   assert.equal(firstCapture.response.captured,true);assert.equal(firstCapture.response.context.quotes.length,1);

@@ -98,7 +98,7 @@
       try {
         if (!resume) await prepareAndSend(prompt);
         else progress("Reconnected · reading ChatGPT's answer…");
-        cleanupEligible = true;
+        cleanupEligible = task === "explain";
         const answer = await readAnswer(["context-summary","paper-explanation"].includes(task) ? 12000 : 2000);
         await emit({ type: "CHATGPT_RESULT", ok: true, ...answer, cleanupPath: cleanupEligible ? location.pathname : undefined });
       } catch (error) { await emit({ type: "CHATGPT_RESULT", ok: false, error: error.message }); }
