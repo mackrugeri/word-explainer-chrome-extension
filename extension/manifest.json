@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Word Explainer",
-  "version": "0.4.10",
+  "version": "0.4.13",
   "description": "Pronounce, translate, or ask ChatGPT or Gemini about selected text.",
   "permissions": [
     "storage",
@@ -34,6 +34,7 @@
         "math-selection.js",
         "selection-launcher.js",
         "page-references.js",
+        "selection-references.js",
         "floating-tools.js",
         "content.js"
       ],
@@ -59,6 +60,7 @@
         "math-selection.js",
         "selection-launcher.js",
         "page-references.js",
+        "selection-references.js",
         "floating-tools.js",
         "content.js"
       ],

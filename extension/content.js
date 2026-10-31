@@ -1,5 +1,5 @@
 (() => {
-  const BUILD="0.4.10";
+  const BUILD="0.4.13";
   const pronunciationAndTranslationOnly=typeof location!=="undefined"&&location.hostname==="chatgpt.com";
   let contextSelection="", highlightRange=null, selectionLauncher=null;
   const highlighter=globalThis.WordHighlighter?.createPersistent();
@@ -19,23 +19,27 @@ button{font:inherit;cursor:pointer;transition:background-color .12s,border-color
 .result{margin:0 16px 12px;padding:12px;background:var(--we-bg);border:1px solid var(--we-line);border-radius:9px;overflow:hidden;overscroll-behavior:contain;scrollbar-width:thin}.result-body{max-height:min(250px,45dvh);overflow:auto;overscroll-behavior:contain;scrollbar-width:thin}summary.status{cursor:pointer;margin-bottom:0}details[open] summary.status{margin-bottom:10px}.status{display:flex;align-items:center;gap:7px;color:var(--we-muted);font-size:10px;font-weight:550;line-height:1.5;margin-bottom:10px}#status,#translation-status,#summary-status{flex:1;min-width:0;overflow-wrap:anywhere}.dot{width:5px;height:5px;border-radius:50%;background:var(--we-accent);flex:none}.loading .dot{animation:pulse 1.3s ease-in-out infinite}.error .dot{background:var(--we-error)}.error .status{color:var(--we-error)}.answer{white-space:pre-wrap;overflow-wrap:anywhere;font-size:15px;line-height:1.7}.answer:empty{display:none}.translation{font-family:"Noto Nastaliq Urdu","Noto Naskh Arabic","Geeza Pro",serif;line-height:1.9}.speaker{display:grid;place-items:center;flex:none;width:30px;height:30px;border:1px solid var(--we-line);border-radius:7px;background:var(--we-bg);color:var(--we-accent);padding:0;font-size:14px}.speaker:hover{background:var(--we-tint)}.speech-note{color:var(--we-muted);font-size:11px;margin-top:8px}.speech-note:empty{display:none}.footer{padding:9px 16px;border-top:1px solid var(--we-line);color:var(--we-muted);font-size:10px;display:flex;align-items:center;justify-content:space-between;gap:12px}.version{font-variant-numeric:tabular-nums}#drag-handle{cursor:grab;touch-action:none;user-select:none}#drag-handle:active{cursor:grabbing}@keyframes pulse{50%{opacity:.3}}@media(max-width:340px){.highlight-colors{gap:5px}.highlight-color{height:22px}.word{font-size:16px}}@media(pointer:coarse){.action,.settings,.close,.speaker{min-height:44px}.settings,.close,.speaker{width:38px}}@media(prefers-reduced-motion:reduce){.loading .dot{animation:none}button{transition:none}}
 .reading-modes{display:flex;gap:3px;margin:0 16px 14px;padding:3px;border:1px solid var(--we-line);border-radius:8px;background:var(--we-soft)}.reading-modes button{flex:1;border:0;border-radius:5px;padding:6px;background:transparent;color:var(--we-muted);font-size:11px;font-weight:550;min-height:30px}.reading-modes button[aria-pressed="true"]{background:var(--we-bg);color:var(--we-text);box-shadow:0 1px 3px #15271b12}.mode-note{margin:0 16px 12px;font-size:11px;color:var(--we-muted)}
 @media(max-width:340px){.actions #speak,.actions #translate,.actions #notes-taken{font-size:11px;padding-inline:4px;white-space:nowrap}.actions #speak .we-button-icon,.actions #translate .we-button-icon,.actions #notes-taken .we-button-icon{width:13px;height:13px;margin-inline-end:4px}}
-      ${globalThis.WordRichResponse?.css||""}
+.actions #llm-choices{grid-column:1/-1;grid-row:2;padding:12px;border:1px solid var(--we-line);border-radius:9px;background:var(--we-soft);font-size:11px}.actions #llm-choices .action{min-height:44px;font-size:13px;line-height:1.5}.actions:has(#llm-choices:not([hidden])) #speak,.actions:has(#llm-choices:not([hidden])) #translate,.actions:has(#llm-choices:not([hidden])) #notes-taken{grid-row:3}.actions:has(#llm-choices:not([hidden])) #equation-speak{grid-row:4}.actions:has(#llm-choices:not([hidden])) #paper-explanation{grid-row:5}
+      .selection-reference-list{white-space:normal;font-size:14px;line-height:1.6}.selection-reference-list article{padding:12px 0;border-top:1px solid var(--we-line)}.selection-reference-list a{color:var(--we-accent);font-weight:600}.selection-reference-list small{display:block;color:var(--we-muted);font-size:11px}.selection-reference-list p{margin:6px 0}
+${globalThis.WordRichResponse?.css||""}
     </style>
     <section class="card" tabindex="-1" aria-label="Word Explainer">
       <div class="header" id="drag-handle" title="Drag to move"><span class="mark" aria-hidden="true">W</span><div class="brand-stack"><span class="brand">Word Explainer</span><span class="tagline">Selection tools</span></div><button class="settings" id="open-settings" type="button" aria-label="Settings" title="Settings">⚙</button><button class="close" id="close" type="button" aria-label="Close">×</button></div>
       <div class="reading-modes" role="group" aria-label="Reading mode"><button id="reading-mode" type="button" aria-pressed="true">Reading</button><button id="math-mode" type="button" aria-pressed="false">Math article</button></div>
       <div class="selection-label">Selected text</div>
       <div class="word" id="word" dir="auto"></div>
-      <div class="actions" id="actions"><button class="action" id="speak" type="button">Listen</button><button class="action" id="equation-speak" type="button" aria-pressed="false">Greek alphabet pronunciation</button><button class="action primary" id="ask-llm" type="button" aria-expanded="false" aria-controls="llm-choices">Ask to LLM</button><button class="action" id="translate" type="button">Translate</button><button class="action" id="notes-taken" type="button">Notes Taken</button><button class="action" id="paper-explanation" type="button" aria-label="Explain mathematical equation from this paper" title="Explain this equation in the research paper’s context">Explain mathematical equation from this paper</button><button class="action" id="summarize" type="button">Summarize</button></div>
+      <div class="actions" id="actions"><button class="action" id="speak" type="button">Listen</button><button class="action" id="equation-speak" type="button" aria-pressed="false">Greek alphabet pronunciation</button><button class="action primary" id="ask-llm" type="button" aria-expanded="false" aria-controls="llm-choices">Ask to LLM</button><div class="llm-choices" id="llm-choices" role="group" aria-label="Choose an AI provider" hidden><span id="provider-label">Choose a provider</span><div class="provider-actions"><button class="action primary" id="explain" type="button">ChatGPT</button><button class="action primary" id="gemini" type="button">Gemini</button></div></div><button class="action" id="translate" type="button">Translate</button><button class="action" id="notes-taken" type="button">Notes Taken</button><button class="action" id="paper-explanation" type="button" aria-label="Explain mathematical equation from this paper" title="Explain this equation in the research paper’s context">Explain mathematical equation from this paper</button><button class="action" id="summarize" type="button">Summarize</button></div>
       <p class="mode-note" id="math-mode-note" role="status" hidden></p>
       <div class="highlights" role="group" aria-label="Highlight selected text"><div class="highlight-header"><span>Highlight</span><button class="highlight-remove" id="remove-highlight" type="button" title="Remove highlights overlapping the selected text">Remove</button></div><div class="highlight-colors" id="highlight-colors"></div><div class="highlight-note" id="highlight-note" role="status" aria-live="polite">Saved locally on this page</div></div>
       <div id="equation-note" class="equation-note" role="status" aria-live="polite"></div>
+      <button class="context-action" id="selection-references" type="button">Selection references</button>
       <button class="context-action" id="cross-context" type="button">Cross-page context ↗</button>
-      <div class="llm-choices" id="llm-choices" role="group" aria-label="Choose an AI provider" hidden><span id="provider-label">Ask which AI?</span><div class="provider-actions"><button class="action primary" id="explain" type="button">ChatGPT</button><button class="action primary" id="gemini" type="button">Gemini</button></div></div>
+
       <details class="result" id="result" hidden open><summary class="status"><span class="dot" aria-hidden="true"></span><span id="status">AI explanation</span></summary><div class="result-body" tabindex="0" aria-label="AI explanation"><div class="answer" id="answer" dir="auto"></div></div></details>
+      <details class="result" id="references-result" hidden open><summary class="status"><span class="dot" aria-hidden="true"></span><span id="references-status">Selection references</span></summary><div class="result-body" tabindex="0" aria-label="Selection references"><div class="answer" id="references-answer"></div></div></details>
       <details class="result" id="summary-result" hidden open><summary class="status"><span class="dot" aria-hidden="true"></span><span id="summary-status">Summary</span></summary><div class="result-body" tabindex="0" aria-label="Summary"><div class="answer" id="summary-answer" dir="auto"></div></div></details>
       <details class="result" id="translation-result" hidden open><summary class="status"><span class="dot" aria-hidden="true"></span><span id="translation-status">Translation</span></summary><div class="result-body" tabindex="0" aria-label="Translation"><button class="speaker" id="listen-translation" type="button" aria-label="Listen to translation" title="Listen to translation" hidden>🔊</button><div class="answer translation" id="translation-answer" dir="auto"></div><div class="speech-note" id="speech-note" role="status"></div></div></details>
-      <div class="footer"><span>Esc to close</span><span class="version">v0.4.10</span></div>
+      <div class="footer"><span>Esc to close</span><span class="version">v0.4.13</span></div>
     </section>`;
   globalThis.WordUIIcons?.decorate(root);
   document.documentElement.appendChild(host);
@@ -49,7 +53,7 @@ button{font:inherit;cursor:pointer;transition:background-color .12s,border-color
   let paperSelection="",paperSourceUrl="";
   let selectedText="", activeRequest=null, selectedAction="explain", selectedProvider="chatgpt";
   const answerKey=(text,action,language,provider=selectedProvider)=>`${action}|${action==="paper-explanation"?paperSourceUrl+"|":""}${action==="translate"?language:provider}|${text}`;
-  const setBusy=value=>{el("paper-explanation").disabled=value;el("summarize").disabled=value;el("ask-llm").disabled=value;el("explain").disabled=value;el("gemini").disabled=value;el("translate").disabled=value;};
+  const setBusy=value=>{el("selection-references").disabled=value;el("paper-explanation").disabled=value;el("summarize").disabled=value;el("ask-llm").disabled=value;el("explain").disabled=value;el("gemini").disabled=value;el("translate").disabled=value;};
   async function send(message){
     try {
       if(!chrome.runtime?.id)throw new Error("Extension context invalidated");
@@ -63,7 +67,7 @@ button{font:inherit;cursor:pointer;transition:background-color .12s,border-color
   const pending = new Map();
   const answers = new Map();
   const el=(id)=>root.getElementById(id);
-  if(pronunciationAndTranslationOnly){el("paper-explanation").hidden=true;el("cross-context").hidden=true;el("ask-llm").hidden=true;el("summarize").hidden=true;el("actions").className="actions limited";}
+  if(pronunciationAndTranslationOnly){el("selection-references").hidden=true;el("paper-explanation").hidden=true;el("cross-context").hidden=true;el("ask-llm").hidden=true;el("summarize").hidden=true;el("actions").className="actions limited";}
   function updateHighlightColor(){
     const active=highlighter?.activeColor(highlightRange);
     for(const button of el("highlight-colors").children||[]){
@@ -167,7 +171,7 @@ button{font:inherit;cursor:pointer;transition:background-color .12s,border-color
     el("remove-highlight").disabled=!canHighlight;updateHighlightColor();
     el("highlight-note").textContent=!highlighter?.supported?"Text highlighting is unavailable in this browser.":embedded?"Highlighting is unavailable for this embedded selection.":canHighlight?(highlighter.status?.()||"Highlighting is available until reload."):"Select non-editable webpage text to highlight.";
     el("word").textContent=selectedText;
-    el("result").hidden=true;el("summary-result").hidden=true;el("translation-result").hidden=true;spokenTranslation=null;
+    el("result").hidden=true;el("references-result").hidden=true;el("summary-result").hidden=true;el("translation-result").hidden=true;spokenTranslation=null;
     const saved=[...answers.entries()].filter(([key])=>key.endsWith(`|${selectedText}`)).map(([,value])=>value);
     for(const result of saved)if((result.action!=="translate"||result.targetLanguage===settings.translationLanguage)&&(result.action!=="paper-explanation"||result.paperSourceUrl===paperSourceUrl))renderResult(result);
     const running=[...pending.entries()].find(([,job])=>job.text===selectedText);
@@ -185,19 +189,22 @@ button{font:inherit;cursor:pointer;transition:background-color .12s,border-color
     return true;
   }
   function resultView(action){
+    if(action==="selection-references")return {section:el("references-result"),status:el("references-status"),answer:el("references-answer")};
     if(action==="summarize")return {section:el("summary-result"),status:el("summary-status"),answer:el("summary-answer")};
     const translation=action==="translate";
     return {section:el(translation?"translation-result":"result"),status:el(translation?"translation-status":"status"),answer:el(translation?"translation-answer":"answer")};
   }
   function expandSection(action){
+    el("references-result").open=action==="selection-references";
     el("summary-result").open=action==="summarize";el("result").open=action==="explain"||action==="paper-explanation";el("translation-result").open=action==="translate";
   }
   function renderResult(result){
     const view=resultView(result.action);
     view.section.hidden=false;view.section.className=result.ok?"result":"result error";
-    view.status.textContent=result.ok?result.label:`${result.action==="translate"?"Translation":result.action==="summarize"?"Summary":"AI explanation"} · Unable to finish`;
+    view.status.textContent=result.ok?result.label:`${result.action==="translate"?"Translation":result.action==="summarize"?"Summary":result.action==="selection-references"?"Selection references":"AI explanation"} · Unable to finish`;
     if(result.warning)view.status.textContent+=" · "+result.warning;
-    if(globalThis.WordRichResponse&&result.ok&&result.action!=="translate")WordRichResponse.render(view.answer,result.rich,result.text);
+    if(result.action==="selection-references"&&result.ok&&globalThis.WordSelectionReferences)WordSelectionReferences.render(view.answer,result.text);
+    else if(globalThis.WordRichResponse&&result.ok&&result.action!=="translate")WordRichResponse.render(view.answer,result.rich,result.text);
     else {view.answer.textContent=result.ok?result.text:(result.error||"No answer received.");view.answer.classList?.remove("rich-response");}
     if(result.action==="translate"){
       stopTranslationSpeech();
@@ -211,8 +218,8 @@ button{font:inherit;cursor:pointer;transition:background-color .12s,border-color
     const job=pending.get(requestId);
     if(!job)return;
     clearTimeout(job.timer);pending.delete(requestId);
-    result={...result,paperSourceUrl:job.paperSourceUrl,action:job.action,provider:job.provider,targetLanguage:job.targetLanguage,label:job.action==="translate"?`Google Translate · ${job.targetLanguage}`:job.action==="summarize"?`Summary · ${job.provider==="gemini"?"Gemini":"ChatGPT"}`:`${job.provider==="gemini"?"Gemini":"ChatGPT"} · explanation`};
-    if(result.ok&&job.action!=="summarize")globalThis.WordReviewPanel?.record({pageUrl:job.pageUrl,text:job.text,action:job.action,
+    result={...result,paperSourceUrl:job.paperSourceUrl,action:job.action,provider:job.provider,targetLanguage:job.targetLanguage,label:job.action==="selection-references"?"Selection references · ChatGPT":job.action==="translate"?`Google Translate · ${job.targetLanguage}`:job.action==="summarize"?`Summary · ${job.provider==="gemini"?"Gemini":"ChatGPT"}`:`${job.provider==="gemini"?"Gemini":"ChatGPT"} · explanation`};
+    if(result.ok&&["explain","translate","paper-explanation"].includes(job.action))globalThis.WordReviewPanel?.record({pageUrl:job.pageUrl,text:job.text,action:job.action,
       provider:job.provider,language:job.targetLanguage,answer:result.text});
     answers.set(job.key,result);
     if(answers.size>20)answers.delete(answers.keys().next().value);
@@ -246,7 +253,7 @@ button{font:inherit;cursor:pointer;transition:background-color .12s,border-color
       job.stage=job.action==="summarize"?`Summary · ${message.stage||"Receiving…"}`:message.stage;
       if(message.requestId===activeRequest&&selectedText===job.text){
         const view=resultView(job.action);view.status.textContent=job.stage;
-        if(typeof message.text==="string"){if(globalThis.WordRichResponse&&job.action!=="translate")WordRichResponse.render(view.answer,message.rich,message.text);else view.answer.textContent=message.text;fitPanel();}
+        if(typeof message.text==="string"&&job.action!=="selection-references"){if(globalThis.WordRichResponse&&job.action!=="translate")WordRichResponse.render(view.answer,message.rich,message.text);else view.answer.textContent=message.text;fitPanel();}
       }
       sendResponse({received:true});
     }
@@ -327,7 +334,7 @@ button{font:inherit;cursor:pointer;transition:background-color .12s,border-color
     if(pronunciationAndTranslationOnly&&action!=="translate")return;
     if(action==="paper-explanation"&&globalThis.WordMathSelection&&!WordMathSelection.isMath(paperSelection||selectedText)){el("math-mode-note").hidden=false;el("math-mode-note").textContent="Select a mathematical equation first.";fitPanel();return;}
     el("llm-choices").hidden=true;el("ask-llm").setAttribute("aria-expanded","false");
-    if(action==="summarize"&&selectedText.length>8000){renderResult({action,ok:false,error:"Select a paragraph of up to 8,000 characters, then choose Summarize again."});expandSection(action);return;}
+    if(["summarize","selection-references"].includes(action)&&selectedText.length>8000){renderResult({action,ok:false,error:"Select up to 8,000 characters and try again."});expandSection(action);return;}
     selectedProvider=provider;
     selectedAction=action;
     if(action==="translate"){stopTranslationSpeech();spokenTranslation=null;el("listen-translation").hidden=true;el("speech-note").textContent="";}
@@ -344,7 +351,7 @@ button{font:inherit;cursor:pointer;transition:background-color .12s,border-color
       complete(requestId,{ok:false,error:"The request timed out. Check the selected AI website and retry."});
       send({type:"CANCEL_EXPLANATION",requestId}).catch(()=>{});
     },155000);
-    send({type:action==="paper-explanation"?"EXPLAIN_PAPER_SELECTION":action==="translate"?"TRANSLATE_SELECTION":action==="summarize"?"SUMMARIZE_SELECTION":"EXPLAIN_SELECTION",text:action==="paper-explanation"?paperSelection:action==="summarize"?selectedText:selectedText.slice(0,1000),sourceUrl:action==="paper-explanation"?paperSourceUrl:undefined,requestId,build:BUILD,action,provider,translationLanguage:job.targetLanguage}).then(ack=>{
+    send({type:action==="selection-references"?"FIND_SELECTION_REFERENCES":action==="paper-explanation"?"EXPLAIN_PAPER_SELECTION":action==="translate"?"TRANSLATE_SELECTION":action==="summarize"?"SUMMARIZE_SELECTION":"EXPLAIN_SELECTION",text:action==="paper-explanation"?paperSelection:["summarize","selection-references"].includes(action)?selectedText:selectedText.slice(0,1000),sourceUrl:action==="paper-explanation"?paperSourceUrl:undefined,requestId,build:BUILD,action,provider,translationLanguage:job.targetLanguage}).then(ack=>{
       if(!ack?.accepted)complete(requestId,{ok:false,error:ack?.error||"The extension could not start the request."});
     }).catch(error=>complete(requestId,{ok:false,error:error.message||"Connection lost. Refresh this page."}));
   }
@@ -359,9 +366,10 @@ button{font:inherit;cursor:pointer;transition:background-color .12s,border-color
   el("ask-llm").addEventListener("click",()=>{
     if(pronunciationAndTranslationOnly)return;
     const choices=el("llm-choices");choices.hidden=!choices.hidden;
-    el("ask-llm").setAttribute("aria-expanded",String(!choices.hidden));fitPanel();
+    el("ask-llm").setAttribute("aria-expanded",String(!choices.hidden));fitPanel();if(!choices.hidden)choices.scrollIntoView?.({block:"nearest"});
   });
   el("paper-explanation").addEventListener("click",()=>requestAction("paper-explanation","chatgpt"));
+  el("selection-references").addEventListener("click",()=>requestAction("selection-references","chatgpt"));
   el("summarize").addEventListener("click",()=>requestAction("summarize","chatgpt"));
   el("explain").addEventListener("click",()=>requestAction("explain"));
   el("gemini").addEventListener("click",()=>requestAction("explain","gemini"));
