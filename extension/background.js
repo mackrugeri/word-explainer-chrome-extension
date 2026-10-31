@@ -8,7 +8,7 @@ const pageSummary=globalThis.WordPageSummary?.create({chrome,start:startJob,read
 const pageReferences=globalThis.WordPageReferences?.create({chrome,start:startJob,readJob:()=>readJob()});
 const storageManager=globalThis.WordStorageManager?.create({storage:chrome.storage.local,reviewStore,notesStore,pageSummary,pageReferences});
 // Short acknowledgements; progress and answers arrive as separate messages.
-const BUILD = "0.4.8";
+const BUILD = "0.4.10";
 const JOB_KEY = "activeExplanationJob";
 const TIMEOUT_ALARM = "word-explanation-timeout";
 let starting = false;
@@ -28,8 +28,10 @@ async function notify(tabId, message) {
 async function routeJob(job, type, data) {
   if(job.surface === "page-references") {
     await pageReferences?.notify(job.requestId,{type,...data});
+    await chrome.tabs.sendMessage(job.sourceTabId,{type:"PAGE_TOOLS_UPDATED"},{frameId:0}).catch(()=>{});
   } else if(job.surface === "whole-page-summary") {
     await pageSummary?.notify(job.requestId,{type,...data});
+    await chrome.tabs.sendMessage(job.sourceTabId,{type:"PAGE_TOOLS_UPDATED"},{frameId:0}).catch(()=>{});
   } else if(job.surface === "pdf-panel") {
     await pdfSelection?.notify(job.sourceTabId,{type,requestId:job.requestId,...data});
   } else if(job.task === "context-summary") {
@@ -213,6 +215,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       state: message.state, error: message.error });
     return;
   }
+  if(message.type==="OPEN_RESEARCH_CONTEXTS"){chrome.tabs.create({url:chrome.runtime.getURL("contexts.html"),active:true}).then(()=>sendResponse({ok:true}),()=>sendResponse({ok:false}));return true;}
   if (message.type === "OPEN_CONTEXTS" || message.type?.startsWith("CONTEXT_")) return contextController.handle(message,sender,sendResponse);
   if (!sender.tab) return;
   if (["NOTES_LIST","NOTES_SAVE","NOTES_DELETE"].includes(message.type)) {

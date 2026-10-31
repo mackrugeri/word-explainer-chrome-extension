@@ -16,10 +16,10 @@
     }
     async function get(url){const live=await read();if(!url)return live;if(live&&same(live.url,url)&&['running','error'].includes(live.status))return live;return (await cache()).find(item=>same(item.url,url))||(live&&same(live.url,url)?live:null);}
     function notify(id,message){return run(async()=>{const old=await read();if(!old||old.id!==id)return;let record={...old,...message,status:message.type==='EXPLANATION_RESULT'?(message.ok?'complete':'error'):'running'};delete record.type;if(record.status==='complete'){try{record=await remember(record);}catch{record.saveWarning='Summary is available for this session, but could not be saved locally.';}}await chrome.storage.session.set({[KEY]:record});await chrome.runtime.sendMessage({type:'PAGE_SUMMARY_UPDATED'}).catch(()=>{});});}
-    async function begin(force=false){
+    async function begin(force=false,sourceTab=null){
       let claimed=false,handedOff=false;
       try{
-        const [tab]=await chrome.tabs.query({active:true,currentWindow:true});if(!Number.isInteger(tab?.id))throw Error('Open a webpage first.');
+        const [tab]=sourceTab?[sourceTab]:await chrome.tabs.query({active:true,currentWindow:true});if(!Number.isInteger(tab?.id))throw Error('Open a webpage first.');
         let url=tab.url,title=tab.title;if(!url){let reply;try{reply=await chrome.tabs.sendMessage(tab.id,{type:'READ_PAGE_LOCATION'},{frameId:0});}catch{}if(!reply?.ok)throw Error('Refresh the webpage after reloading the extension, then try again.');url=reply.url;title=reply.title;}
         canonical(url);const job=await readJob(),live=await read();
         if(live?.status==='running'&&same(live.url,url)&&(starting||job?.requestId===live.id&&job.expiresAt>Date.now()))return live;
@@ -31,7 +31,16 @@
         handedOff=true;Promise.resolve().then(()=>start(url,tab.id,record.id,'chatgpt',{task:'whole-page-summary',surface:'whole-page-summary',sourceUrl:url})).catch(error=>notify(record.id,{type:'EXPLANATION_RESULT',ok:false,error:error.message||'Could not summarize this URL.'})).finally(()=>{starting=false;});return record;
       }finally{if(claimed&&!handedOff)starting=false;}
     }
-    function handle(message,sender,reply){if(!['PAGE_SUMMARY_GET','PAGE_SUMMARY_START'].includes(message.type))return false;if(sender.id!==chrome.runtime.id||sender.url!==chrome.runtime.getURL('popup.html')){reply({ok:false,error:'Open the extension toolbar popup to summarize a page.'});return true;}(message.type==='PAGE_SUMMARY_START'?begin(message.refresh===true):get(message.url)).then(record=>reply({ok:true,record})).catch(error=>reply({ok:false,error:error.message}));return true;}
+    function handle(message,sender,reply){
+      if(!['PAGE_SUMMARY_GET','PAGE_SUMMARY_START'].includes(message.type))return false;
+      let sourceTab=null;
+      if(sender.id!==chrome.runtime.id){reply({ok:false,error:'Open Word Explainer to use this tool.'});return true;}
+      if(sender.url!==chrome.runtime.getURL('popup.html')){
+        try{if(message.floating!==true||sender.frameId!==0||!Number.isInteger(sender.tab?.id))throw Error();canonical(sender.url);if(message.url&&!same(message.url,sender.url))throw Error();sourceTab={...sender.tab,url:sender.url};}
+        catch{reply({ok:false,error:'Open Word Explainer on the source page to use this tool.'});return true;}
+      }
+      (message.type==='PAGE_SUMMARY_START'?begin(message.refresh===true,sourceTab):get(message.url||(sourceTab?.url))).then(record=>reply({ok:true,record})).catch(error=>reply({ok:false,error:error.message}));return true;
+    }
     return{handle,notify,clearSite:site=>run(async()=>{await chrome.storage.local.set({[CACHE]:(await cache()).filter(item=>new URL(item.url).origin!==site)});const live=await read();if(live?.status==='complete'&&new URL(live.url).origin===site)await chrome.storage.session.remove(KEY);})};
   }
   globalThis.WordPageSummary={prompt,create};
