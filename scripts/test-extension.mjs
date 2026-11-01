@@ -13,10 +13,10 @@ async function testBackground(restart=false,action="explain",translationLanguage
     storage:{session:{get:async()=>structuredClone(store),set:async value=>Object.assign(store,structuredClone(value)),remove:async key=>{delete store[key]}}},
     alarms:{create:async()=>{},clear:async()=>{},onAlarm:{addListener:f=>alarmHandler=f}},
     tabs:{onRemoved:{addListener:f=>removedHandler=f},create:async options=>{createdUrl=options.url;return{id:77}},remove:async id=>closed.push(id),sendMessage:async(id,msg)=>{
-      if(id===5){notifications.push(msg);return{received:true};}if(msg.type===prefix+'_START')submittedPrompt=msg.prompt;return msg.type===prefix+'_READY'?{ready:true,build:'0.4.15'}:{accepted:true};
+      if(id===5){notifications.push(msg);return{received:true};}if(msg.type===prefix+'_START')submittedPrompt=msg.prompt;return msg.type===prefix+'_READY'?{ready:true,build:'0.4.16'}:{accepted:true};
     }}};
   const boot=()=>vm.runInNewContext(bg,{chrome,console,setTimeout,clearTimeout,Date});boot();
-  let ack;const returned=handler({type:'EXPLAIN_SELECTION',text:'borrower',requestId:'r1',build:'0.4.15',action,translationLanguage,provider},{id:'test',tab:{id:5}},v=>ack=v);
+  let ack;const returned=handler({type:'EXPLAIN_SELECTION',text:'borrower',requestId:'r1',build:'0.4.16',action,translationLanguage,provider},{id:'test',tab:{id:5}},v=>ack=v);
   assert.equal(returned,undefined);assert.equal(ack.accepted,true);await flush();assert.equal(store.activeExplanationJob.tabId,77);if(action==='translate'){assert.ok(submittedPrompt.startsWith('Translate'));assert.ok(submittedPrompt.includes('into '+translationLanguage));assert.ok(submittedPrompt.includes('only the translation'));}else assert.ok(submittedPrompt.startsWith('Explain'));
   assert.equal(createdUrl,provider==="gemini"?"https://gemini.google.com/app":"https://chatgpt.com/");
   if(restart)boot();
@@ -63,9 +63,9 @@ async function testPanel(action="explain",provider="chatgpt",hostname="example.c
   assert.equal(requests.length,0,'Selection alone must not call ChatGPT');if(action==='explain'){elements['llm-choices'].hidden=true;elements['ask-llm'].click();assert.equal(elements['llm-choices'].hidden,false);assert.equal(requests.length,0,'Opening provider choice must not send a request');}elements[provider==="gemini"?"gemini":action].click();await flush();assert.equal(requests[0].action,action);assert.equal(requests[0].provider,provider);assert.equal(requests[0].type,action==='translate'?'TRANSLATE_SELECTION':'EXPLAIN_SELECTION');if(action==='translate')assert.equal(requests[0].translationLanguage,'Urdu');assert.equal(elements.explain.disabled,true);
   dispatch({type:'EXPLANATION_PARTIAL',requestId:'r1',text:'A borrower receives a loan.',stage:'Receiving…'});
   assert.equal(elements[action==='translate'?'translation-answer':'answer'].textContent,'A borrower receives a loan.');
-  docHandlers.mouseup({composedPath:()=>[]});assert.equal(host.style.display,'none');
+  docHandlers.mouseup({composedPath:()=>[]});assert.equal(elements['selection-card'].hidden,true);assert.equal(elements['restore-selection'].hidden,false);
   dispatch({type:'EXPLANATION_RESULT',requestId:'r1',ok:true,text:'A borrower receives a loan and agrees to repay it.'});
-  assert.equal(elements.explain.disabled,false);assert.equal(host.style.display,'none');
+  assert.equal(elements.explain.disabled,false);assert.equal(elements['selection-card'].hidden,true);
   dispatch({type:'SHOW_SELECTION_MENU'});assert.equal(elements[action==='translate'?'translation-result':'result'].hidden,false);
   assert.equal(elements[action==='translate'?'translation-answer':'answer'].textContent,'A borrower receives a loan and agrees to repay it.');
   if(action==='translate'){
@@ -90,12 +90,8 @@ async function testPanel(action="explain",provider="chatgpt",hostname="example.c
   docHandlers.mouseup({composedPath:()=>[]});dispatch({type:'SHOW_SELECTION_MENU'});
   assert.equal(elements.result.hidden,false);assert.equal(elements['translation-result'].hidden,false,'Both sections restore on reopen');
   assert.equal(recorded.length,2,'Each successful completed answer is recorded once');assert.ok(recorded.every(record=>record.answer&&record.text==='borrower'));
-  let captured=false;
-  elements['drag-handle'].setPointerCapture=()=>captured=true;
-  elements['drag-handle'].pointerdown({button:0,pointerId:1,clientX:50,clientY:50,target:{closest:()=>null},preventDefault:()=>{}});
-  elements['drag-handle'].pointermove({pointerId:1,clientX:100,clientY:100});
-  assert.equal(captured,true,'Header drag captures the pointer');
-  elements['drag-handle'].pointerup();
+  const count=requests.length;elements['minimize-selection'].click();assert.equal(elements['selection-card'].hidden,true);elements['restore-selection'].click();assert.equal(elements['selection-card'].hidden,false);assert.equal(requests.length,count,'Restore does not resubmit requests');assert.equal(host.style.right,'12px');
+
 
 }
 await testBackground();await testBackground(true);await testWorker();await testWorker(true);await testWorker(false,true);await testPanel();await testPanel("translate");
@@ -160,7 +156,7 @@ async function testDirectGoogle(language='Urdu',failure=null){
   };
   vm.runInNewContext(bg,{chrome,fetch,URLSearchParams,AbortController,TypeError,console,setTimeout,clearTimeout,Date});
   let ack;const returned=handler({type:'TRANSLATE_SELECTION',text:'Hello & world?',translationLanguage:language,
-    requestId:'translation-1',build:'0.4.15',action:'translate'},{id:'test',tab:{id:5}},v=>ack=v);
+    requestId:'translation-1',build:'0.4.16',action:'translate'},{id:'test',tab:{id:5}},v=>ack=v);
   assert.equal(returned,undefined);assert.equal(ack.accepted,true);await flush();
   assert.equal(fetchCount,1);assert.equal(tabCount,0);assert.equal(delivered.length,1);
   assert.equal(delivered[0].type,'EXPLANATION_RESULT');assert.equal(delivered[0].requestId,'translation-1');
@@ -336,7 +332,7 @@ async function testContextBackground(provider='gemini',cleanupOutcome=null){
     commands:{onCommand:{addListener:()=>{}}},alarms:{create:async()=>{},clear:async()=>{},onAlarm:{addListener:()=>{}}},
     tabs:{create:async spec=>{opened.push(spec);return{id:77}},remove:async tabId=>closed.push(tabId),onRemoved:{addListener:()=>{}},sendMessage:async(id,msg)=>{
       if(msg.type.endsWith('_CLEANUP')){assert.ok(saved.wordContextsV1[0].summary,'Summary must be saved before chat deletion');return{deleted:cleanupOutcome==='success',error:cleanupOutcome==='failure'?'The generated chat was not found in Recents.':undefined}}
-      if(msg.type.endsWith('_READY'))return{ready:true,build:'0.4.15'};
+      if(msg.type.endsWith('_READY'))return{ready:true,build:'0.4.16'};
       if(msg.type.endsWith('_START')){preparedPrompt=msg;return{accepted:true}}return{};
     }}};
   let count=0;

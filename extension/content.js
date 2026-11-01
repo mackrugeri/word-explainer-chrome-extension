@@ -1,5 +1,5 @@
 (() => {
-  const BUILD="0.4.15";
+  const BUILD="0.4.16";
   const pronunciationAndTranslationOnly=typeof location!=="undefined"&&location.hostname==="chatgpt.com";
   let contextSelection="", highlightRange=null, selectionLauncher=null;
   const highlighter=globalThis.WordHighlighter?.createPersistent();
@@ -21,10 +21,11 @@ button{font:inherit;cursor:pointer;transition:background-color .12s,border-color
 @media(max-width:340px){.actions #speak,.actions #translate,.actions #notes-taken{font-size:11px;padding-inline:4px;white-space:nowrap}.actions #speak .we-button-icon,.actions #translate .we-button-icon,.actions #notes-taken .we-button-icon{width:13px;height:13px;margin-inline-end:4px}}
 .actions #llm-choices{grid-column:1/-1;grid-row:2;padding:12px;border:1px solid var(--we-line);border-radius:9px;background:var(--we-soft);font-size:11px}.actions #llm-choices .action{min-height:44px;font-size:13px;line-height:1.5}.actions:has(#llm-choices:not([hidden])) #speak,.actions:has(#llm-choices:not([hidden])) #translate,.actions:has(#llm-choices:not([hidden])) #notes-taken{grid-row:3}.actions:has(#llm-choices:not([hidden])) #equation-speak{grid-row:4}.actions:has(#llm-choices:not([hidden])) #paper-explanation{grid-row:5}
       .selection-reference-list{white-space:normal;font-size:14px;line-height:1.6}.selection-reference-list article{padding:12px 0;border-top:1px solid var(--we-line)}.selection-reference-list a{color:var(--we-accent);font-weight:600}.selection-reference-list small{display:block;color:var(--we-muted);font-size:11px}.selection-reference-list p{margin:6px 0}
+.card{width:min(360px,calc(100vw - 24px));height:calc(100dvh - 24px);max-height:calc(100dvh - 24px);border-radius:12px;box-shadow:-8px 0 32px #15271b18,0 2px 8px #15271b12}.header{position:sticky;top:0;z-index:2;background:var(--we-bg);padding:12px 14px}.footer{position:sticky;bottom:0;background:var(--we-bg)}#drag-handle,#drag-handle:active{cursor:default;touch-action:auto}.restore-selection{position:fixed;right:0;top:104px;width:30px;height:60px;border:1px solid #dce3dc;border-right:0;border-radius:10px 0 0 10px;background:#fff;color:#245d47;box-shadow:-2px 2px 9px #15271b1a;font:28px/1 system-ui;cursor:pointer;opacity:.8}.restore-selection:hover,.restore-selection:focus-visible{opacity:1;outline:2px solid #6ba788;outline-offset:-3px}:host([data-we-theme="dark"]) .restore-selection{background:#1d2720;color:#b3d8bf;border-color:#38473b}
 ${globalThis.WordRichResponse?.css||""}
     </style>
-    <section class="card" tabindex="-1" aria-label="Word Explainer">
-      <div class="header" id="drag-handle" title="Drag to move"><span class="mark" aria-hidden="true">W</span><div class="brand-stack"><span class="brand">Word Explainer</span><span class="tagline">Selection tools</span></div><button class="settings" id="open-settings" type="button" aria-label="Settings" title="Settings">⚙</button><button class="close" id="close" type="button" aria-label="Close">×</button></div>
+    <section class="card" id="selection-card" tabindex="-1" aria-label="Word Explainer">
+      <div class="header" id="drag-handle" title="Selection tools"><span class="mark" aria-hidden="true">W</span><div class="brand-stack"><span class="brand">Word Explainer</span><span class="tagline">Selection tools</span></div><button class="settings" id="open-settings" type="button" aria-label="Settings" title="Settings">⚙</button><button class="close" id="minimize-selection" type="button" aria-label="Minimize selection tools" title="Minimize to edge">›</button><button class="close" id="close" type="button" aria-label="Close">×</button></div>
       <div class="reading-modes" role="group" aria-label="Reading mode"><button id="reading-mode" type="button" aria-pressed="true">Reading</button><button id="math-mode" type="button" aria-pressed="false">Math article</button></div>
       <div class="selection-label">Selected text</div>
       <div class="word" id="word" dir="auto"></div>
@@ -39,8 +40,8 @@ ${globalThis.WordRichResponse?.css||""}
       <details class="result" id="references-result" hidden open><summary class="status"><span class="dot" aria-hidden="true"></span><span id="references-status">Selection references</span></summary><div class="result-body" tabindex="0" aria-label="Selection references"><div class="answer" id="references-answer"></div></div></details>
       <details class="result" id="summary-result" hidden open><summary class="status"><span class="dot" aria-hidden="true"></span><span id="summary-status">Summary</span></summary><div class="result-body" tabindex="0" aria-label="Summary"><div class="answer" id="summary-answer" dir="auto"></div></div></details>
       <details class="result" id="translation-result" hidden open><summary class="status"><span class="dot" aria-hidden="true"></span><span id="translation-status">Translation</span></summary><div class="result-body" tabindex="0" aria-label="Translation"><button class="speaker" id="listen-translation" type="button" aria-label="Listen to translation" title="Listen to translation" hidden>🔊</button><div class="answer translation" id="translation-answer" dir="auto"></div><div class="speech-note" id="speech-note" role="status"></div></div></details>
-      <div class="footer"><span>Esc to close</span><span class="version">v0.4.15</span></div>
-    </section>`;
+      <div class="footer"><span>Esc to minimize</span><span class="version">v0.4.16</span></div>
+    </section><button class="restore-selection" id="restore-selection" type="button" aria-label="Restore selection tools" title="Restore selection tools" aria-controls="selection-card" aria-expanded="false" hidden>‹</button>`;
   globalThis.WordUIIcons?.decorate(root);
   document.documentElement.appendChild(host);
   let settings = { language:"en-US", rate:1, translationLanguage:"Urdu", translationFontSize:20, readingMode:"reading" };
@@ -117,14 +118,26 @@ ${globalThis.WordRichResponse?.css||""}
     try{await chrome.storage.local.set({readingMode:mode});}catch{el("math-mode-note").hidden=false;el("math-mode-note").textContent="Mode changed for this page; could not save the preference.";}
   });
   applyReadingMode();
-  let spokenTranslation=null, speechId=null, returnFocus=null, plainUtterance=null;
-  const hide=()=>{ host.style.display="none";el("llm-choices").hidden=true;el("ask-llm").setAttribute("aria-expanded","false");stopTranslationSpeech();stopEquationSpeech(); };
+  let spokenTranslation=null, speechId=null, returnFocus=null, plainUtterance=null, minimized=false;
+  const hide=()=>{ minimized=false;el("restore-selection").hidden=true;el("selection-card").hidden=false;host.style.display="none";el("llm-choices").hidden=true;el("ask-llm").setAttribute("aria-expanded","false");stopTranslationSpeech();stopEquationSpeech(); };
   const dismiss=()=>{
     hide();
     if(plainUtterance){plainUtterance=null;speechSynthesis.cancel();}
     if(returnFocus?.isConnected)returnFocus.focus?.({preventScroll:true});
     returnFocus=null;
   };
+  function minimizeSelection(focus=false){
+    if(host.style.display!=="block"||minimized)return;
+    minimized=true;el("selection-card").hidden=true;el("restore-selection").hidden=false;el("restore-selection").setAttribute("aria-expanded","false");
+    if(focus)el("restore-selection").focus?.({preventScroll:true});
+  }
+  function restoreSelection(){
+    if(!selectedText)return;
+    minimized=false;el("restore-selection").hidden=true;el("selection-card").hidden=false;host.style.display="block";fitPanel();
+    el("selection-card").focus?.({preventScroll:true});
+  }
+  el("minimize-selection").addEventListener("click",()=>minimizeSelection(true));
+  el("restore-selection").addEventListener("click",restoreSelection);
   function applyTranslationSize(){
     if(!spokenTranslation)return;
     const size=Number(settings.translationFontSize);
@@ -137,9 +150,7 @@ ${globalThis.WordRichResponse?.css||""}
     el("listen-translation").ariaLabel="Listen to translation";el("listen-translation").title="Listen to translation";
   }
   function fitPanel(){
-    const rect=host.getBoundingClientRect();
-    host.style.left=`${Math.max(12,Math.min(rect.left,innerWidth-rect.width-12))}px`;
-    host.style.top=`${Math.max(12,Math.min(rect.top,innerHeight-rect.height-12))}px`;
+    host.style.left="auto";host.style.right="12px";host.style.top="12px";
   }
   function showSelection(embedded=null){
     selectionLauncher?.hide();
@@ -181,9 +192,7 @@ ${globalThis.WordRichResponse?.css||""}
     if(running){const view=resultView(running[1].action);view.section.hidden=false;view.section.className="result loading";view.status.textContent=running[1].stage||"Waiting for the answer…";}
     expandSection(selectedAction);
     host.style.display="block";
-    host.style.left=`${rect.left}px`;
-    const height=host.getBoundingClientRect().height;
-    host.style.top=`${rect.top>=height+12?rect.top-height-12:rect.bottom+12}px`;
+    minimized=false;el("selection-card").hidden=false;el("restore-selection").hidden=true;
     fitPanel();
     root.querySelector?.(".card")?.focus?.({preventScroll:true});
     return true;
@@ -258,34 +267,20 @@ ${globalThis.WordRichResponse?.css||""}
       sendResponse({received:true});
     }
   });
-  document.addEventListener("mouseup",event=>{if(!event.composedPath().includes(host))hide();});
+  document.addEventListener("mouseup",event=>{if(!event.composedPath().includes(host))minimizeSelection();});
   document.addEventListener("keydown",event=>{
-    if(event.key==="Escape"&&host.style.display==="block"){event.preventDefault();dismiss();}
+    if(event.key==="Escape"&&host.style.display==="block"&&!minimized){event.preventDefault();minimizeSelection(true);}
   });
   root.addEventListener("keydown",event=>{
-    if(event.key!=="Tab")return;
+    if(event.key!=="Tab"||minimized)return;
     const stops=[...root.querySelectorAll('button:not([disabled]), a[href], [tabindex="0"]')].filter(node=>node.getClientRects().length);
     if(!stops.length)return;
     const current=root.activeElement;
     if(event.shiftKey&&(current===stops[0]||!stops.includes(current))){event.preventDefault();stops.at(-1).focus();}
     else if(!event.shiftKey&&current===stops.at(-1)){event.preventDefault();stops[0].focus();}
   });
-  document.addEventListener("scroll",event=>{if(!event.composedPath().includes(host))hide();},true);
-  window.addEventListener("resize",hide);
+  window.addEventListener("resize",fitPanel);
   root.addEventListener("mousedown",event=>{if(event.target.closest?.("button"))event.preventDefault();});
-  let drag=null;
-  const handle=el("drag-handle");
-  handle.addEventListener("pointerdown",event=>{
-    if(event.button!==0||event.target.closest?.("button"))return;
-    const rect=host.getBoundingClientRect();drag={id:event.pointerId,x:event.clientX,y:event.clientY,left:rect.left,top:rect.top};
-    handle.setPointerCapture?.(event.pointerId);event.preventDefault();
-  });
-  handle.addEventListener("pointermove",event=>{
-    if(!drag||event.pointerId!==drag.id)return;
-    host.style.left=`${drag.left+event.clientX-drag.x}px`;host.style.top=`${drag.top+event.clientY-drag.y}px`;fitPanel();
-  });
-  const endDrag=()=>{drag=null;};
-  handle.addEventListener("pointerup",endDrag);handle.addEventListener("pointercancel",endDrag);
   el("close").addEventListener("click",dismiss);
   el("open-settings").addEventListener("click",()=>send({type:"OPEN_SETTINGS"}).catch(()=>{}));
   el("listen-translation").addEventListener("click",()=>{
@@ -376,5 +371,5 @@ ${globalThis.WordRichResponse?.css||""}
   el("translate").addEventListener("click",()=>requestAction("translate"));
   if(!pronunciationAndTranslationOnly&&window.top===window){globalThis.WordReviewPanel?.useDock?.();globalThis.WordFloatingTools?.create({openSelection:action=>{if(!showSelection())return false;if(action)el(action)?.click();return true;},mountReview:(container,onClose)=>globalThis.WordReviewPanel?.mount?.(container,onClose)||false});}
   globalThis.WordSelectionUI={open:()=>showSelection()};
-  selectionLauncher=globalThis.WordSelectionLauncher?.create({open:()=>showSelection(),isPanelOpen:()=>host.style.display==="block"});
+  selectionLauncher=globalThis.WordSelectionLauncher?.create({open:()=>showSelection(),isPanelOpen:()=>host.style.display==="block"&&!minimized});
 })();
