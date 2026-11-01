@@ -32,13 +32,27 @@ let preference={theme:'light'};const browser=await chromium.launch({channel:'chr
  await panel.setViewportSize({width:320,height:640});await panel.evaluate(()=>{const range=document.createRange();range.selectNodeContents(document.getElementById('selected'));getSelection().removeAllRanges();getSelection().addRange(range);handler({type:'SHOW_SELECTION_MENU'},{id:'test'},()=>{});});m=await measure();assert.equal(m.overflow,false);assert.ok(m.width<=296&&m.height<=616&&m.top>=0);
  await panel.evaluate(()=>root.getElementById('math-mode').click());
  await panel.waitForFunction(()=>root.getElementById('math-mode').getAttribute('aria-pressed')==='true');
- assert.equal(await panel.evaluate(()=>root.getElementById('equation-speak').textContent),'Greek alphabet pronunciation');
+ assert.equal(await panel.evaluate(()=>root.getElementById('equation-speak').textContent),'Greek');
  assert.equal(await panel.evaluate(()=>root.getElementById('paper-explanation').disabled),true,'Ordinary prose is not an equation action');
  const equation=String.raw`\begin{bmatrix}a & b \\ c & d\end{bmatrix} \mathbf{x} = \lambda \mathbf{x}`;
  await panel.evaluate(equation=>{document.getElementById('selected').textContent=equation;const range=document.createRange();range.selectNodeContents(document.getElementById('selected'));getSelection().removeAllRanges();getSelection().addRange(range);handler({type:'SHOW_SELECTION_MENU'},{id:'test'},()=>{});},equation);
  assert.equal(await panel.evaluate(()=>root.getElementById('paper-explanation').disabled),false,'Complex notation is not restricted by local speech parser');
+
+ const compact=await panel.evaluate(()=>{const ids=['equation-speak','paper-explanation','selection-references','cross-context'];return{tools:ids.map(id=>{const button=root.getElementById(id);return{id,title:button.dataset.tooltip,name:button.getAttribute('aria-label'),group:button.parentElement.id};}),paletteBottom:root.querySelector('.highlights').getBoundingClientRect().bottom,footerTop:root.querySelector('.footer').getBoundingClientRect().top,content:root.querySelector('.selection-content').getBoundingClientRect().bottom,highlightTop:root.querySelector('.highlights').getBoundingClientRect().top};});
+ assert.deepEqual(compact.tools.map(tool=>tool.title),['Greek alphabet pronunciation','Explain mathematical equation from this paper','Selection references','Cross-page context']);assert.ok(compact.tools.every(tool=>tool.group==='actions'&&tool.name===tool.title));assert.ok(compact.paletteBottom<=compact.footerTop&&compact.content<=compact.highlightTop,'Highlight stays below scrollable tools and results');
+
+ const beforeHover=await panel.evaluate(()=>sent.length);
+ for(const [id,label] of [['equation-speak','Greek alphabet pronunciation'],['paper-explanation','Explain mathematical equation from this paper'],['selection-references','Selection references'],['cross-context','Cross-page context'],['notes-taken','Notes Taken']]){
+  const point=await panel.evaluate(id=>{const r=root.getElementById(id).getBoundingClientRect();return{x:r.left+r.width/2,y:r.top+r.height/2};},id);await panel.mouse.move(point.x,point.y);
+  await panel.waitForFunction(label=>{const tip=root.getElementById('selection-tooltip');return !tip.hidden&&tip.textContent===label;},label);
+  const tip=await panel.evaluate(()=>{const t=root.getElementById('selection-tooltip'),r=t.getBoundingClientRect();return{left:r.left,right:r.right,top:r.top,bottom:r.bottom,role:t.getAttribute('role')};});assert.ok(tip.left>=0&&tip.right<=320&&tip.top>=0&&tip.bottom<=640);assert.equal(tip.role,'tooltip');
+ }
+ await panel.mouse.move(2,2);assert.equal(await panel.evaluate(()=>root.getElementById('selection-tooltip').hidden),true);
+ await panel.evaluate(()=>root.getElementById('equation-speak').focus());await panel.waitForFunction(()=>!root.getElementById('selection-tooltip').hidden);assert.equal(await panel.evaluate(()=>root.getElementById('equation-speak').getAttribute('aria-describedby')),'selection-tooltip');
+ await panel.screenshot({path:'/tmp/word-explainer-visible-tooltip.png'});
+ await panel.keyboard.press('Escape');assert.equal(await panel.evaluate(()=>root.getElementById('selection-tooltip').hidden),true);assert.equal(await panel.evaluate(()=>root.getElementById('selection-card').hidden),false,'Escape dismisses tooltip before minimizing drawer');assert.equal(await panel.evaluate(()=>sent.length),beforeHover,'Hover/focus never starts a request');
  await panel.screenshot({path:'/tmp/word-explainer-math-mode.png'});
- assert.equal(await panel.evaluate(()=>root.getElementById('paper-explanation').textContent),'Explain mathematical equation from this paper');
+ assert.equal(await panel.evaluate(()=>root.getElementById('paper-explanation').textContent),'Equation');
  await panel.evaluate(()=>root.getElementById('paper-explanation').click());
  assert.equal(await panel.evaluate(()=>sent.at(-1).text),equation);assert.equal(await panel.evaluate(()=>sent.at(-1).type),'EXPLAIN_PAPER_SELECTION');assert.equal(preference.readingMode,'math');
  await panel.evaluate(()=>root.getElementById('close').click());assert.equal(await panel.evaluate(()=>root.host.style.display),'none');

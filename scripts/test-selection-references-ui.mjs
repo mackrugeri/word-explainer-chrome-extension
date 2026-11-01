@@ -43,13 +43,13 @@ let preference={theme:'light'};const browser=await chromium.launch({channel:'chr
  await panel.setViewportSize({width:320,height:640});await panel.evaluate(()=>{const range=document.createRange();range.selectNodeContents(document.getElementById('selected'));getSelection().removeAllRanges();getSelection().addRange(range);handler({type:'SHOW_SELECTION_MENU'},{id:'test'},()=>{});});m=await measure();assert.equal(m.overflow,false);assert.ok(m.width<=296&&m.height<=616&&m.top>=0);
  await panel.evaluate(()=>root.getElementById('math-mode').click());
  await panel.waitForFunction(()=>root.getElementById('math-mode').getAttribute('aria-pressed')==='true');
- assert.equal(await panel.evaluate(()=>root.getElementById('equation-speak').textContent),'Greek alphabet pronunciation');
+ assert.equal(await panel.evaluate(()=>root.getElementById('equation-speak').textContent),'Greek');
  assert.equal(await panel.evaluate(()=>root.getElementById('paper-explanation').disabled),true,'Ordinary prose is not an equation action');
  const equation=String.raw`\begin{bmatrix}a & b \\ c & d\end{bmatrix} \mathbf{x} = \lambda \mathbf{x}`;
  await panel.evaluate(equation=>{document.getElementById('selected').textContent=equation;const range=document.createRange();range.selectNodeContents(document.getElementById('selected'));getSelection().removeAllRanges();getSelection().addRange(range);handler({type:'SHOW_SELECTION_MENU'},{id:'test'},()=>{});},equation);
  assert.equal(await panel.evaluate(()=>root.getElementById('paper-explanation').disabled),false,'Complex notation is not restricted by local speech parser');
  await panel.screenshot({path:'/tmp/word-explainer-math-mode.png'});
- assert.equal(await panel.evaluate(()=>root.getElementById('paper-explanation').textContent),'Explain mathematical equation from this paper');
+ assert.equal(await panel.evaluate(()=>root.getElementById('paper-explanation').textContent),'Equation');
  await panel.evaluate(()=>root.getElementById('paper-explanation').click());
  assert.equal(await panel.evaluate(()=>sent.at(-1).text),equation);assert.equal(await panel.evaluate(()=>sent.at(-1).type),'EXPLAIN_PAPER_SELECTION');assert.equal(preference.readingMode,'math');
  await panel.evaluate(()=>root.getElementById('close').click());assert.equal(await panel.evaluate(()=>root.host.style.display),'none');

@@ -1,5 +1,5 @@
 (() => {
-  const BUILD="0.4.17";
+  const BUILD="0.4.20";
   const pronunciationAndTranslationOnly=typeof location!=="undefined"&&location.hostname==="chatgpt.com";
   let contextSelection="", highlightRange=null, selectionLauncher=null;
   const highlighter=globalThis.WordHighlighter?.createPersistent();
@@ -22,28 +22,52 @@ button{font:inherit;cursor:pointer;transition:background-color .12s,border-color
 .actions #llm-choices{grid-column:1/-1;grid-row:2;padding:12px;border:1px solid var(--we-line);border-radius:9px;background:var(--we-soft);font-size:11px}.actions #llm-choices .action{min-height:44px;font-size:13px;line-height:1.5}.actions:has(#llm-choices:not([hidden])) #speak,.actions:has(#llm-choices:not([hidden])) #translate,.actions:has(#llm-choices:not([hidden])) #notes-taken{grid-row:3}.actions:has(#llm-choices:not([hidden])) #equation-speak{grid-row:4}.actions:has(#llm-choices:not([hidden])) #paper-explanation{grid-row:5}
       .selection-reference-list{white-space:normal;font-size:14px;line-height:1.6}.selection-reference-list article{padding:12px 0;border-top:1px solid var(--we-line)}.selection-reference-list a{color:var(--we-accent);font-weight:600}.selection-reference-list small{display:block;color:var(--we-muted);font-size:11px}.selection-reference-list p{margin:6px 0}
 .card{width:min(360px,calc(100vw - 24px));height:calc(100dvh - 24px);max-height:calc(100dvh - 24px);border-radius:12px;box-shadow:-8px 0 32px #15271b18,0 2px 8px #15271b12}.header{position:sticky;top:0;z-index:2;background:var(--we-bg);padding:12px 14px}.footer{position:sticky;bottom:0;background:var(--we-bg)}#drag-handle,#drag-handle:active{cursor:default;touch-action:auto}.restore-selection{position:fixed;right:0;top:104px;width:30px;height:60px;border:1px solid #dce3dc;border-right:0;border-radius:10px 0 0 10px;background:#fff;color:#245d47;box-shadow:-2px 2px 9px #15271b1a;font:28px/1 system-ui;cursor:pointer;opacity:.8}.restore-selection:hover,.restore-selection:focus-visible{opacity:1;outline:2px solid #6ba788;outline-offset:-3px}:host([data-we-theme="dark"]) .restore-selection{background:#1d2720;color:#b3d8bf;border-color:#38473b}
+.card{display:flex;flex-direction:column;overflow:hidden}.header,.highlights,.footer{flex:none}.header{margin-bottom:0}.selection-content{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;padding-top:15px;padding-bottom:8px}.footer{position:static}.highlights{margin-top:0}.actions .action{font-size:12px}.actions #notes-taken{font-size:11px}.actions #selection-references,.actions #cross-context{grid-column:span 3;grid-row:3}.actions #equation-speak,.actions #paper-explanation{grid-column:span 3;grid-row:4;min-height:38px;text-align:center;font-size:12px;color:var(--we-text);background:var(--we-bg)}.actions:has(#llm-choices:not([hidden])) #selection-references,.actions:has(#llm-choices:not([hidden])) #cross-context{grid-row:4}.actions:has(#llm-choices:not([hidden])) #equation-speak,.actions:has(#llm-choices:not([hidden])) #paper-explanation{grid-row:5}
+.selection-tooltip{position:fixed;z-index:4;max-width:min(260px,calc(100vw - 16px));padding:8px 11px;border:1px solid #435c4d;border-radius:7px;background:#233c2e;color:#fff;box-shadow:0 4px 14px #15271b30;font:12px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;text-align:left;white-space:normal;overflow-wrap:anywhere;pointer-events:none}:host([data-we-theme="dark"]) .selection-tooltip{background:#e4efe5;color:#1b3022;border-color:#b7cabc}
 ${globalThis.WordRichResponse?.css||""}
     </style>
     <section class="card" id="selection-card" tabindex="-1" aria-label="Word Explainer">
       <div class="header" id="drag-handle" title="Selection tools"><span class="mark" aria-hidden="true">W</span><div class="brand-stack"><span class="brand">Word Explainer</span><span class="tagline">Selection tools</span></div><button class="settings" id="open-settings" type="button" aria-label="Settings" title="Settings">⚙</button><button class="close" id="minimize-selection" type="button" aria-label="Minimize selection tools" title="Minimize to edge">›</button><button class="close" id="close" type="button" aria-label="Close">×</button></div>
+      <div class="selection-content">
       <div class="reading-modes" role="group" aria-label="Reading mode"><button id="reading-mode" type="button" aria-pressed="true">Reading</button><button id="math-mode" type="button" aria-pressed="false">Math article</button></div>
       <div class="selection-label">Selected text</div>
       <div class="word" id="word" dir="auto"></div>
-      <div class="actions" id="actions"><button class="action" id="speak" type="button">Listen</button><button class="action" id="equation-speak" type="button" aria-pressed="false">Greek alphabet pronunciation</button><button class="action primary" id="ask-llm" type="button" aria-expanded="false" aria-controls="llm-choices">Ask to LLM</button><div class="llm-choices" id="llm-choices" role="group" aria-label="Choose an AI provider" hidden><span id="provider-label">Choose a provider</span><div class="provider-actions"><button class="action primary" id="explain" type="button">ChatGPT</button><button class="action primary" id="gemini" type="button">Gemini</button></div></div><button class="action" id="translate" type="button">Translate</button><button class="action" id="notes-taken" type="button">Notes Taken</button><button class="action" id="paper-explanation" type="button" aria-label="Explain mathematical equation from this paper" title="Explain this equation in the research paper’s context">Explain mathematical equation from this paper</button><button class="action" id="summarize" type="button">Summarize</button></div>
+      <div class="actions" id="actions"><button class="action primary" id="ask-llm" type="button" aria-expanded="false" aria-controls="llm-choices">Ask to LLM</button><button class="action" id="summarize" type="button">Summarize</button><div class="llm-choices" id="llm-choices" role="group" aria-label="Choose an AI provider" hidden><span id="provider-label">Choose a provider</span><div class="provider-actions"><button class="action primary" id="explain" type="button">ChatGPT</button><button class="action primary" id="gemini" type="button">Gemini</button></div></div><button class="action" id="speak" type="button">Listen</button><button class="action" id="translate" type="button">Translate</button><button class="action" id="notes-taken" type="button" aria-label="Notes Taken" title="Notes Taken">Notes</button><button class="action" id="selection-references" type="button" aria-label="Selection references" title="Selection references">References</button><button class="action" id="cross-context" type="button" aria-label="Cross-page context" title="Cross-page context">Context</button><button class="action" id="equation-speak" type="button" aria-label="Greek alphabet pronunciation" title="Greek alphabet pronunciation" aria-pressed="false">Greek</button><button class="action" id="paper-explanation" type="button" aria-label="Explain mathematical equation from this paper" title="Explain mathematical equation from this paper">Equation</button></div>
       <p class="mode-note" id="math-mode-note" role="status" hidden></p>
-      <div class="highlights" role="group" aria-label="Highlight selected text"><div class="highlight-header"><span>Highlight</span><button class="highlight-remove" id="remove-highlight" type="button" title="Remove highlights overlapping the selected text">Remove</button></div><div class="highlight-colors" id="highlight-colors"></div><div class="highlight-note" id="highlight-note" role="status" aria-live="polite">Saved locally on this page</div></div>
       <div id="equation-note" class="equation-note" role="status" aria-live="polite"></div>
-      <button class="context-action" id="selection-references" type="button">Selection references</button>
-      <button class="context-action" id="cross-context" type="button">Cross-page context ↗</button>
 
       <details class="result" id="result" hidden open><summary class="status"><span class="dot" aria-hidden="true"></span><span id="status">AI explanation</span></summary><div class="result-body" tabindex="0" aria-label="AI explanation"><div class="answer" id="answer" dir="auto"></div></div></details>
       <details class="result" id="references-result" hidden open><summary class="status"><span class="dot" aria-hidden="true"></span><span id="references-status">Selection references</span></summary><div class="result-body" tabindex="0" aria-label="Selection references"><div class="answer" id="references-answer"></div></div></details>
       <details class="result" id="summary-result" hidden open><summary class="status"><span class="dot" aria-hidden="true"></span><span id="summary-status">Summary</span></summary><div class="result-body" tabindex="0" aria-label="Summary"><div class="answer" id="summary-answer" dir="auto"></div></div></details>
       <details class="result" id="translation-result" hidden open><summary class="status"><span class="dot" aria-hidden="true"></span><span id="translation-status">Translation</span></summary><div class="result-body" tabindex="0" aria-label="Translation"><button class="speaker" id="listen-translation" type="button" aria-label="Listen to translation" title="Listen to translation" hidden>🔊</button><div class="answer translation" id="translation-answer" dir="auto"></div><div class="speech-note" id="speech-note" role="status"></div></div></details>
-      <div class="footer"><span>Esc to minimize</span><span class="version">v0.4.17</span></div>
-    </section><button class="restore-selection" id="restore-selection" type="button" aria-label="Restore selection tools" title="Restore selection tools" aria-controls="selection-card" aria-expanded="false" hidden>‹</button>`;
+      </div>
+      <div class="highlights" role="group" aria-label="Highlight selected text"><div class="highlight-header"><span>Highlight</span><button class="highlight-remove" id="remove-highlight" type="button" title="Remove highlights overlapping the selected text">Remove</button></div><div class="highlight-colors" id="highlight-colors"></div><div class="highlight-note" id="highlight-note" role="status" aria-live="polite">Saved locally on this page</div></div>
+      <div class="footer"><span>Esc to minimize</span><span class="version">v0.4.20</span></div>
+    </section><button class="restore-selection" id="restore-selection" type="button" aria-label="Restore selection tools" title="Restore selection tools" aria-controls="selection-card" aria-expanded="false" hidden>‹</button><div class="selection-tooltip" id="selection-tooltip" role="tooltip" hidden></div>`;
   globalThis.WordUIIcons?.decorate(root);
   document.documentElement.appendChild(host);
+  const tooltip=root.getElementById("selection-tooltip");let tooltipButton=null;
+  tooltip.hidden=true;
+  for(const button of root.querySelectorAll?.("#equation-speak,#paper-explanation,#selection-references,#cross-context,#notes-taken")||[]){button.dataset.tooltip=button.title;button.removeAttribute("title");}
+  function hideTooltip(){
+    tooltip.hidden=true;
+    if(tooltipButton){const ids=(tooltipButton.getAttribute("aria-describedby")||"").split(/\s+/).filter(id=>id&&id!=="selection-tooltip");if(ids.length)tooltipButton.setAttribute("aria-describedby",ids.join(" "));else tooltipButton.removeAttribute("aria-describedby");}
+    tooltipButton=null;
+  }
+  function showTooltip(button){
+    if(!button?.dataset.tooltip||button.getClientRects().length===0){hideTooltip();return;}
+    hideTooltip();tooltipButton=button;tooltip.textContent=button.dataset.tooltip;tooltip.hidden=false;
+    const described=(button.getAttribute("aria-describedby")||"").split(/\s+/).filter(Boolean);button.setAttribute("aria-describedby",[...described,"selection-tooltip"].join(" "));
+    const anchor=button.getBoundingClientRect(),tip=tooltip.getBoundingClientRect();
+    tooltip.style.left=`${Math.max(8,Math.min(anchor.left+(anchor.width-tip.width)/2,innerWidth-tip.width-8))}px`;
+    tooltip.style.top=`${Math.max(8,anchor.bottom+tip.height+16<=innerHeight?anchor.bottom+8:anchor.top-tip.height-8)}px`;
+  }
+  root.addEventListener("pointerover",event=>{const button=event.target.closest?.("button[data-tooltip]");if(button)showTooltip(button);});
+  root.addEventListener("pointerout",event=>{if(tooltipButton&&!tooltipButton.contains(event.relatedTarget))hideTooltip();});
+  root.addEventListener("focusin",event=>showTooltip(event.target.closest?.("button[data-tooltip]")));
+  root.addEventListener("focusout",hideTooltip);root.addEventListener("pointerdown",hideTooltip);
+  root.addEventListener("scroll",hideTooltip,true);window.addEventListener("resize",hideTooltip);
+
   let settings = { askProvider:"ask", language:"en-US", rate:1, translationLanguage:"Urdu", translationFontSize:20, readingMode:"reading" };
   chrome.storage.local.get(settings).then(value => { settings=value;applyTranslationSize();applyReadingMode(); }).catch(()=>{});
   chrome.storage.onChanged.addListener((changes,area)=>{
@@ -119,7 +143,7 @@ ${globalThis.WordRichResponse?.css||""}
   });
   applyReadingMode();
   let spokenTranslation=null, speechId=null, returnFocus=null, plainUtterance=null, minimized=false;
-  const hide=()=>{ minimized=false;el("restore-selection").hidden=true;el("selection-card").hidden=false;host.style.display="none";el("llm-choices").hidden=true;el("ask-llm").setAttribute("aria-expanded","false");stopTranslationSpeech();stopEquationSpeech(); };
+  const hide=()=>{ hideTooltip();minimized=false;el("restore-selection").hidden=true;el("selection-card").hidden=false;host.style.display="none";el("llm-choices").hidden=true;el("ask-llm").setAttribute("aria-expanded","false");stopTranslationSpeech();stopEquationSpeech(); };
   const dismiss=()=>{
     hide();
     if(plainUtterance){plainUtterance=null;speechSynthesis.cancel();}
@@ -128,7 +152,7 @@ ${globalThis.WordRichResponse?.css||""}
   };
   function minimizeSelection(focus=false){
     if(host.style.display!=="block"||minimized)return;
-    minimized=true;el("selection-card").hidden=true;el("restore-selection").hidden=false;el("restore-selection").setAttribute("aria-expanded","false");
+    hideTooltip();minimized=true;el("selection-card").hidden=true;el("restore-selection").hidden=false;el("restore-selection").setAttribute("aria-expanded","false");
     if(focus)el("restore-selection").focus?.({preventScroll:true});
   }
   function restoreSelection(){
@@ -269,6 +293,7 @@ ${globalThis.WordRichResponse?.css||""}
   });
   document.addEventListener("mouseup",event=>{if(!event.composedPath().includes(host))minimizeSelection();});
   document.addEventListener("keydown",event=>{
+    if(event.key==="Escape"&&!tooltip.hidden){event.preventDefault();hideTooltip();return;}
     if(event.key==="Escape"&&host.style.display==="block"&&!minimized){event.preventDefault();minimizeSelection(true);}
   });
   root.addEventListener("keydown",event=>{
