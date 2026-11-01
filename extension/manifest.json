@@ -1,14 +1,15 @@
 {
   "manifest_version": 3,
   "name": "Word Explainer",
-  "version": "0.4.13",
+  "version": "0.4.14",
   "description": "Pronounce, translate, or ask ChatGPT or Gemini about selected text.",
   "permissions": [
     "storage",
     "alarms",
     "offscreen",
     "contextMenus",
-    "sidePanel"
+    "sidePanel",
+    "activeTab"
   ],
   "background": {
     "service_worker": "background.js"
@@ -40,7 +41,10 @@
       ],
       "exclude_matches": [
         "https://chatgpt.com/*",
-        "https://gemini.google.com/*"
+        "https://gemini.google.com/*",
+        "https://storage.googleapis.com/cloud-training/*",
+        "https://www.skills.google/*",
+        "https://skills.google/*"
       ]
     },
     {
@@ -81,7 +85,46 @@
         "https://storage.googleapis.com/cloud-training/*"
       ],
       "js": [
-        "course-selection.js"
+        "theme.js",
+        "ui-icons.js",
+        "review-panel.js",
+        "rich-response.js",
+        "equation-speech.js",
+        "highlighter.js",
+        "notes-anchor.js",
+        "notes-panel.js",
+        "math-selection.js",
+        "selection-launcher.js",
+        "page-references.js",
+        "selection-references.js",
+        "floating-tools.js",
+        "course-selection.js",
+        "content.js"
+      ],
+      "all_frames": true,
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.skills.google/*",
+        "https://skills.google/*"
+      ],
+      "js": [
+        "theme.js",
+        "ui-icons.js",
+        "review-panel.js",
+        "rich-response.js",
+        "equation-speech.js",
+        "highlighter.js",
+        "notes-anchor.js",
+        "notes-panel.js",
+        "math-selection.js",
+        "selection-launcher.js",
+        "page-references.js",
+        "selection-references.js",
+        "floating-tools.js",
+        "course-selection.js",
+        "content.js"
       ],
       "all_frames": true,
       "run_at": "document_idle"

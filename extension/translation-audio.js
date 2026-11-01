@@ -21,7 +21,7 @@ function chunks(text, limit = 180) {
   return output;
 }
 async function report(job, state, error) {
-  try { await chrome.runtime.sendMessage({ type: "TRANSLATION_AUDIO_STATUS", sourceTabId: job.sourceTabId,
+  try { await chrome.runtime.sendMessage({ type: "TRANSLATION_AUDIO_STATUS", sourceTabId: job.sourceTabId, sourceFrameId:job.sourceFrameId||0,
     speechId: job.speechId, state, error }); } catch { stopPlayback(); }
 }
 async function play(job) {
@@ -69,6 +69,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
   sendResponse({ accepted: true });
   play({ text: message.text, language: message.language, speechId: message.speechId,
-    sourceTabId: message.sourceTabId, rate: Math.max(.5, Math.min(2, Number(message.rate) || 1)) });
+    sourceTabId: message.sourceTabId, sourceFrameId:message.sourceFrameId||0, rate: Math.max(.5, Math.min(2, Number(message.rate) || 1)) });
 });
 window.addEventListener("pagehide", stopPlayback);

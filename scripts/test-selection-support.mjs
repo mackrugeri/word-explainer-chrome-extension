@@ -18,9 +18,15 @@ assert.ok(collect().text.includes('BigQuery'));assert.equal(collect('https://unr
 
 const bg=(await Promise.all(['notes-store.js','review-store.js','context-store.js','context-controller.js','background.js'].map(name=>fs.readFile(new URL(name,dir),'utf8')))).join('\n');
 let command;const sent=[];let badge='';
-const chrome={runtime:{id:'test',getURL:name=>'chrome-extension://test/'+name,onMessage:{addListener(){}},sendMessage:async msg=>{sent.push(msg);return{ok:true,shown:true,build:'0.4.13'}}},storage:{local:{},session:{}},commands:{onCommand:{addListener:f=>command=f}},alarms:{onAlarm:{addListener(){}}},action:{setBadgeText:async value=>badge=value.text,setTitle:async()=>{}},tabs:{onRemoved:{addListener(){}},sendMessage:async(id,msg,options)=>{sent.push({...msg,options});if(msg.type==='SHOW_SELECTION_MENU')return{ok:true,shown:false,build:'0.4.13',courseFramesAllowed:true};if(msg.type==='COLLECT_COURSE_SELECTION')return{ok:true,text:'BigQuery ML',sourceUrl:'https://storage.googleapis.com/cloud-training/course/index.html',rect:{left:20,top:50,bottom:70}};return{shown:true};}}};
+const chrome={runtime:{id:'test',getURL:name=>'chrome-extension://test/'+name,onMessage:{addListener(){}},sendMessage:async msg=>{sent.push(msg);return{ok:true,shown:true,build:'0.4.14'}}},storage:{local:{},session:{}},commands:{onCommand:{addListener:f=>command=f}},alarms:{onAlarm:{addListener(){}}},action:{setBadgeText:async value=>badge=value.text,setTitle:async()=>{}},tabs:{onRemoved:{addListener(){}},sendMessage:async(id,msg,options)=>{sent.push({...msg,options});if(msg.type==='SHOW_SELECTION_MENU')return{ok:true,shown:false,build:'0.4.14',courseFramesAllowed:true};if(msg.type==='COLLECT_COURSE_SELECTION')return{ok:true,text:'BigQuery ML',sourceUrl:'https://storage.googleapis.com/cloud-training/course/index.html',rect:{left:20,top:50,bottom:70}};return{shown:true};}}};
 vm.runInNewContext(bg,{chrome,URL,Date,setTimeout,clearTimeout});await command('show-selection-menu',{id:5,url:'https://www.skills.google/paths/1'});
-assert.equal(sent[1].type,'COLLECT_COURSE_SELECTION');assert.equal(sent[2].type,'SHOW_COURSE_SELECTION_MENU');assert.equal(sent[2].options.frameId,0);assert.equal(badge,'');
+assert.equal(sent[0].type,'COLLECT_COURSE_SELECTION');assert.equal(sent.at(-1).type,'SHOW_COURSE_SELECTION_MENU');assert.equal(sent.at(-1).options.frameId,0);assert.equal(badge,'');
+
+let opened=0;chrome.sidePanel={open:async()=>{opened++}};
+await command('show-selection-menu',{id:5,url:'https://example.org/paper.pdf?download=1'});assert.equal(opened,1,'PDF command opens panel before any message to its protected viewer');
+const beforeLocal=sent.length,originalSend=chrome.tabs.sendMessage;
+chrome.tabs.sendMessage=async(id,msg,options)=>{if(msg.type==='COLLECT_COURSE_SELECTION'){sent.push(msg);return{ok:true,shown:true};}return originalSend(id,msg,options);};
+await command('show-selection-menu',{id:5,url:'https://www.skills.google/paths/1'});assert.equal(sent.length,beforeLocal+1,'Local lesson popup takes precedence over a stale parent selection');chrome.tabs.sendMessage=originalSend;
 
 const content=await fs.readFile(new URL('content.js',dir),'utf8');let handler;const elements={},utterances=[];const root={getElementById:id=>elements[id],addEventListener(){}};
 Object.defineProperty(root,'innerHTML',{set:html=>{for(const [,id]of html.matchAll(/id="([^"]+)"/g))elements[id]={style:{},textContent:'',setAttribute(k,v){this[k]=v},addEventListener(type,fn){this[type]=fn}}}});
@@ -30,6 +36,6 @@ const ctx={WordEquationSpeech:equation.WordEquationSpeech,URL,location:{hostname
 vm.runInNewContext(content,ctx);await new Promise(setImmediate);
 handler({type:'SHOW_SELECTION_MENU'},{id:'test'},()=>{});elements['equation-speak'].click();assert.equal(utterances.at(-1).text,'alpha plus beta equals gamma');assert.equal(utterances.at(-1).lang,'en-US');assert.equal(elements['equation-explain'],undefined);
 elements.speak.click();assert.equal(utterances.at(-1).text,'α + β = γ');assert.equal(utterances.at(-1).lang,'ur-PK','Ordinary pronunciation keeps its configured language');
-let reply;handler({type:'SHOW_COURSE_SELECTION_MENU',build:'0.4.13',selection:{text:'BigQuery ML',sourceUrl:'https://storage.googleapis.com/cloud-training/course/index.html',rect:{left:20,top:50,bottom:70}}},{id:'test'},value=>reply=value);assert.equal(reply.shown,true);assert.equal(elements.word.textContent,'BigQuery ML');
-handler({type:'SHOW_COURSE_SELECTION_MENU',build:'0.4.13',selection:{text:'bad',sourceUrl:'https://unrelated.example',rect:{left:0,top:0,bottom:0}}},{id:'test'},value=>reply=value);assert.equal(reply.ok,false);
+let reply;handler({type:'SHOW_COURSE_SELECTION_MENU',build:'0.4.14',selection:{text:'BigQuery ML',sourceUrl:'https://storage.googleapis.com/cloud-training/course/index.html',rect:{left:20,top:50,bottom:70}}},{id:'test'},value=>reply=value);assert.equal(reply.shown,true);assert.equal(elements.word.textContent,'BigQuery ML');
+handler({type:'SHOW_COURSE_SELECTION_MENU',build:'0.4.14',selection:{text:'bad',sourceUrl:'https://unrelated.example',rect:{left:0,top:0,bottom:0}}},{id:'test'},value=>reply=value);assert.equal(reply.ok,false);
 console.log('PASS: symbol pronunciation restored without equation explanation, preserved ordinary pronunciation, Google Skills frame selection, unrelated-origin refusal, top-frame display.');

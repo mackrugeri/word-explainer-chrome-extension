@@ -8,7 +8,7 @@ const pageSummary=globalThis.WordPageSummary?.create({chrome,start:startJob,read
 const pageReferences=globalThis.WordPageReferences?.create({chrome,start:startJob,readJob:()=>readJob()});
 const storageManager=globalThis.WordStorageManager?.create({storage:chrome.storage.local,reviewStore,notesStore,pageSummary,pageReferences});
 // Short acknowledgements; progress and answers arrive as separate messages.
-const BUILD = "0.4.13";
+const BUILD = "0.4.14";
 const JOB_KEY = "activeExplanationJob";
 const TIMEOUT_ALARM = "word-explanation-timeout";
 let starting = false;
@@ -20,9 +20,9 @@ const pdfSelection = globalThis.WordPDFSelection?.create({chrome,translate:trans
   capture:record=>new Promise(resolve=>contextController.handle({type:"OPEN_CONTEXTS",text:record.text,title:record.title},
     {id:chrome.runtime.id,tab:{id:record.tabId,url:record.url}},resolve))});
 
-async function notify(tabId, message) {
+async function notify(tabId, message, sourceFrameId=0) {
   if (pdfSelection && await pdfSelection.notify(tabId,message).catch(()=>false)) return;
-  try { await chrome.tabs.sendMessage(tabId, message, {frameId:0}); }
+  try { await chrome.tabs.sendMessage(tabId, message, {frameId:sourceFrameId}); }
   catch { /* The source page may have navigated or been closed. */ }
 }
 async function routeJob(job, type, data) {
@@ -37,7 +37,7 @@ async function routeJob(job, type, data) {
   } else if(job.task === "context-summary") {
     const contextType = type.replace("EXPLANATION_", "CONTEXT_SUMMARY_");
     await chrome.runtime.sendMessage({type:contextType,contextId:job.contextId,requestId:job.requestId,...data}).catch(()=>{});
-  } else await notify(job.sourceTabId,{type,requestId:job.requestId,...data});
+  } else await notify(job.sourceTabId,{type,requestId:job.requestId,...data},job.sourceFrameId||0);
 }
 async function finishJob(tabId, result) {
   if (finishing.has(tabId)) return;
@@ -174,6 +174,12 @@ chrome.commands.onCommand.addListener(async (command, tab) => {
   try {
     if (!tab?.id) [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab?.id) return;
+    let nativePDF=false;try{const url=new URL(tab.url);nativePDF=/\.pdf$/i.test(url.pathname)||url.protocol==='chrome-extension:'&&new URL(url.searchParams.get('file')||'https://invalid/').pathname.toLowerCase().endsWith('.pdf');}catch{}
+    if(nativePDF&&chrome.sidePanel){chrome.sidePanel.open({tabId:tab.id}).catch(()=>shortcutFeedback(tab.id,"Open PDF actions from the PDF selection’s right-click menu."));return;}
+    // A focused lesson can retain an old selection in its parent: prefer its actual frame.
+    if(/^https:\/\/(www\.)?skills\.google\//.test(tab.url||'')){
+      try{const lesson=await chrome.tabs.sendMessage(tab.id,{type:"COLLECT_COURSE_SELECTION"});if(lesson?.ok&&lesson.shown){await shortcutFeedback(tab.id);return;}}catch{}
+    }
     // Unlike general notifications, a shortcut must not swallow delivery errors.
     const reply = await chrome.tabs.sendMessage(tab.id, { type: "SHOW_SELECTION_MENU", build: BUILD }, {frameId:0});
     if (!reply?.ok || reply.build !== BUILD) {
@@ -183,7 +189,8 @@ chrome.commands.onCommand.addListener(async (command, tab) => {
       try{selected=await chrome.tabs.sendMessage(tab.id,{type:"COLLECT_COURSE_SELECTION"});}catch{}
       let valid=false;
       try{const url=new URL(selected?.sourceUrl);valid=url.origin==="https://storage.googleapis.com"&&url.pathname.startsWith("/cloud-training/");}catch{}
-      if(selected?.ok&&valid){
+      if(selected?.ok&&selected.shown){await shortcutFeedback(tab.id);
+      }else if(selected?.ok&&valid){
         const shown=await chrome.tabs.sendMessage(tab.id,{type:"SHOW_COURSE_SELECTION_MENU",build:BUILD,selection:selected},{frameId:0});
         await shortcutFeedback(tab.id,shown?.shown?"":"The lesson selection could not be displayed. Refresh the lesson and retry.");
       }else await shortcutFeedback(tab.id,selected?.error||"Select text inside the lesson, then press the shortcut. Refresh this page after updating the extension.");
@@ -212,7 +219,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "TRANSLATION_AUDIO_STATUS" && !sender.tab && sender.url === chrome.runtime.getURL("translation-audio.html")) {
     sendResponse({ ok: true });
     notify(message.sourceTabId, { type: "TRANSLATION_SPEECH_STATUS", speechId: message.speechId,
-      state: message.state, error: message.error });
+      state: message.state, error: message.error },message.sourceFrameId||0);
     return;
   }
   if(message.type==="OPEN_RESEARCH_CONTEXTS"){chrome.tabs.create({url:chrome.runtime.getURL("contexts.html"),active:true}).then(()=>sendResponse({ok:true}),()=>sendResponse({ok:false}));return true;}
@@ -228,7 +235,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (["REVIEW_LIST", "REVIEW_SAVE", "REVIEW_CLEAR", "REVIEW_EXPORT"].includes(message.type)) {
     let url;
     try {
-      url = WordReviewStore.pageKey(sender.tab.url || sender.url);
+      url = WordReviewStore.pageKey(sender.url || sender.tab.url);
       if (WordReviewStore.pageKey(message.pageUrl) !== url) throw new Error("The page changed. Open review on the current page.");
     } catch (error) { sendResponse({ ok: false, error: error.message }); return; }
     const operation = message.type === "REVIEW_SAVE" ? reviewStore.save(url, message.record)
@@ -258,10 +265,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     sendResponse({ accepted: true });
     ensureTranslationAudio().then(() => chrome.runtime.sendMessage({
       target: "translation-audio", type: "PLAY_TRANSLATION_AUDIO", text: message.text,
-      language: message.language, rate: message.rate, sourceTabId: sender.tab.id, speechId: message.speechId
+      language: message.language, rate: message.rate, sourceTabId: sender.tab.id, sourceFrameId:sender.frameId||0, speechId: message.speechId
     })).then(ack => { if (!ack?.accepted) throw new Error("Audio could not start."); }).catch(error =>
       notify(sender.tab.id, { type: "TRANSLATION_SPEECH_STATUS", speechId: message.speechId,
-        state: "error", error: error.message }));
+        state: "error", error: error.message },sender.frameId||0));
     return;
   }
   if (message.type === "STOP_TRANSLATION_SPEECH") {
@@ -292,13 +299,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     sendResponse({ accepted: true });
     if (isTranslation) {
       translateDirect(text, language, message.requestId, sender.tab.id).then(
-        translated => notify(sender.tab.id, { type: "EXPLANATION_RESULT", requestId: message.requestId, ok: true, text: translated }),
-        error => notify(sender.tab.id, { type: "EXPLANATION_RESULT", requestId: message.requestId, ok: false, error: error.message })
+        translated => notify(sender.tab.id, { type: "EXPLANATION_RESULT", requestId: message.requestId, ok: true, text: translated },sender.frameId||0),
+        error => notify(sender.tab.id, { type: "EXPLANATION_RESULT", requestId: message.requestId, ok: false, error: error.message },sender.frameId||0)
       );
     } else {
-      startJob(text, sender.tab.id, message.requestId, provider, isReferences ? {task:"selection-references"} : isPaper ? {task:"paper-explanation",sourceUrl:message.sourceUrl} : isSummary ? {task:"paragraph-summary"} : {}).catch(error => notify(sender.tab.id, {
+      startJob(text, sender.tab.id, message.requestId, provider, {sourceFrameId:sender.frameId||0,...(isReferences ? {task:"selection-references"} : isPaper ? {task:"paper-explanation",sourceUrl:message.sourceUrl} : isSummary ? {task:"paragraph-summary"} : {})}).catch(error => notify(sender.tab.id, {
         type: "EXPLANATION_RESULT", requestId: message.requestId, ok: false, error: error.message
-      }));
+      },sender.frameId||0));
     }
     return;
   }

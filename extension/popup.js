@@ -22,3 +22,7 @@ contextsButton.addEventListener("click",async()=>{
 });
 
 globalThis.WordUIIcons?.decorate(document);
+
+document.getElementById("pdf-reader")?.addEventListener("click",()=>{
+  chrome.tabs.query({active:true,currentWindow:true}).then(([tab])=>{if(!Number.isInteger(tab?.id))throw Error();return chrome.sidePanel.open({tabId:tab.id});}).catch(()=>{popupStatus.textContent="Select PDF text and use its right-click menu to open PDF actions.";popupStatus.hidden=false;});
+});

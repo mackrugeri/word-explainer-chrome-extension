@@ -59,6 +59,12 @@
           const record=(await chrome.storage.session.get(key(message.tabId)))[key(message.tabId)];
           respond({ok:true,record:record||null});return;
         }
+        if(message.type==="PDF_PANEL_SET_SELECTION"){
+          const text=typeof message.text==='string'?message.text.trim():'';if(!text||text.length>8000)throw Error("Paste between 1 and 8,000 characters from this PDF.");
+          const tab=await chrome.tabs.get(message.tabId);const url=typeof tab.url==='string'?tab.url:'';
+          const record=await update(message.tabId,()=>({id:crypto.randomUUID(),tabId:message.tabId,text,exactText:message.text,url,title:String(tab.title||"PDF source").slice(0,300),requests:{},results:{}}));
+          respond({ok:true,record});return;
+        }
         if(message.type==="PDF_PANEL_CONTEXT"){
           const record=await update(message.tabId,current=>{
             if(!current||current.id!==message.selectionId)throw new Error("The selection changed. Select the PDF text again.");
@@ -68,21 +74,22 @@
           respond(await capture(record));return;
         }
         if(message.type!=="PDF_PANEL_RUN")throw new Error("Unsupported PDF action.");
-        if(!["translate","explain","paper-explanation","summarize"].includes(message.action)||!/^[a-zA-Z0-9-]{8,100}$/.test(message.requestId||""))throw new Error("Choose a PDF action again.");
+        if(!["translate","explain","paper-explanation","summarize","selection-references"].includes(message.action)||!/^[a-zA-Z0-9-]{8,100}$/.test(message.requestId||""))throw new Error("Choose a PDF action again.");
         if(!["chatgpt","gemini"].includes(message.provider))throw new Error("Choose ChatGPT or Gemini.");
         if(!["Urdu","English","Arabic","French","Spanish"].includes(message.language))throw new Error("Choose a supported language in settings.");
         const record=await update(message.tabId,current=>{
           if(!current||current.id!==message.selectionId)throw new Error("The selection changed. Select the PDF text again.");
           if(message.action==="paper-explanation"){WordPaperExplanation.prompt(current.exactText??current.text,current.url);message.provider="chatgpt";}
-          if(message.action==="summarize")message.provider="chatgpt";
-          if(!["paper-explanation","summarize"].includes(message.action)&&current.text.length>1000)throw new Error("Select up to 1,000 characters for translation or AI explanation.");
+          if(["summarize","selection-references"].includes(message.action))message.provider="chatgpt";
+          if(message.action==="selection-references")WordSelectionReferences.prompt(current.text);
+          if(!["paper-explanation","summarize","selection-references"].includes(message.action)&&current.text.length>1000)throw new Error("Select up to 1,000 characters for translation or AI explanation.");
           current.requests[message.action]=message.requestId;
           current.results[message.action]={type:"EXPLANATION_PROGRESS",requestId:message.requestId,stage:message.action==="translate"?"Translating…":"Asking "+(message.provider==="gemini"?"Gemini":"ChatGPT")+"…"};return current;
         });
         respond({ok:true,accepted:true});
         const work=message.action==="translate"
           ? translate(record.text,message.language,message.requestId,message.tabId).then(text=>notify(message.tabId,{type:"EXPLANATION_RESULT",requestId:message.requestId,ok:true,text}))
-          : start(message.action==="paper-explanation"?(record.exactText??record.text):record.text,message.tabId,message.requestId,message.provider,{surface:"pdf-panel",...(message.action==="paper-explanation"?{task:"paper-explanation",sourceUrl:record.url}:message.action==="summarize"?{task:"paragraph-summary"}:{})});
+          : start(message.action==="paper-explanation"?(record.exactText??record.text):record.text,message.tabId,message.requestId,message.provider,{surface:"pdf-panel",...(message.action==="paper-explanation"?{task:"paper-explanation",sourceUrl:record.url}:message.action==="summarize"?{task:"paragraph-summary"}:message.action==="selection-references"?{task:"selection-references"}:{})});
         work.catch(error=>notify(message.tabId,{type:"EXPLANATION_RESULT",requestId:message.requestId,ok:false,error:error.message})).catch(()=>{});
       })().catch(error=>respond({ok:false,error:error.message||"PDF actions are unavailable. Retry."}));
       return true;

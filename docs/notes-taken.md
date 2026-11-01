@@ -6,6 +6,6 @@ Notes persist in chrome.storage.local, separately from AI recaps, with at most 4
 
 Anchors retain the exact selected quote and up to 80 characters before and after. Restoration requires one unique exact match with both contexts. Ambiguous or changed passages produce a **notes · passage unavailable** button instead of a guessed icon. Click repeatedly to cycle through unavailable notes. Layout changes and inserted earlier text are supported; edited surrounding text may intentionally require the missing-passage fallback. Page URLs include query strings and exclude fragments.
 
-Embedded cross-origin selections and Chrome's native PDF viewer cannot host these icons. Notes Taken currently supports normal webpage text only. Existing PDF actions and CSS Highlights remain separate.
+Notes Taken and CSS Highlights support normal webpage text and Google Skills lesson frames on the supported Skills/Google Storage hosts. The popup runs inside the lesson so its notes and highlights retain the actual passage range. Chrome's protected native PDF viewer cannot host these inline icons; use its separate PDF actions panel for selectable text.
 
 Validation: test-notes.mjs covers restart persistence, word limits, site/page isolation, bounded storage, edits/deletion, Review merging and ambiguous/changed quote matching. test-notes-browser.cjs uses Playwright with Chrome to verify cross-element anchoring, Urdu editing, icons, unchanged page markup, DOM changes and fallback. Provider tests remain mocked and do not certify live ChatGPT/Gemini service behavior.
