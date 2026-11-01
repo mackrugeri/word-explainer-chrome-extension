@@ -3,7 +3,7 @@
 (() => {
   const KEYS={review:'wordReviewPagesV1',notes:'wordPersonalNotesV1',contexts:'wordContextsV1',pageSummaries:'wordPageSummariesV1',pageReferences:'wordPageReferencesV1'};
   const PREFIX='wordHighlightsV1:';
-  const preferences=['activationMode','readingMode','theme','language','rate','detail','translationLanguage','translationFontSize'];
+  const preferences=['askProvider','activationMode','readingMode','theme','language','rate','detail','translationLanguage','translationFontSize'];
   const bytes=value=>new TextEncoder().encode(JSON.stringify(value)??'').length;
   function origin(value){try{const u=new URL(value);return ['http:','https:'].includes(u.protocol)?u.origin:null;}catch{return null;}}
   function inventory(data){

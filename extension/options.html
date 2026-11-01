@@ -15,7 +15,7 @@
 <label>Pronunciation language<select id="language"><option value="en-US">English (US)</option><option value="en-GB">English (UK)</option><option value="ur-PK">Urdu</option><option value="es-ES">Spanish</option><option value="fr-FR">French</option></select></label>
 <label>Speaking speed<span class="input-unit"><input id="rate" type="number" min="0.5" max="2" step="0.1" required aria-describedby="rate-help"><span aria-hidden="true">×</span></span><small id="rate-help">1× is normal speed.</small></label>
 </div><p class="field-note">The speaker beside a translation reads it in the translation language.</p></fieldset>
-<fieldset><legend>Explanations</legend><label>Explanation detail<select id="detail" aria-describedby="detail-help"><option value="short">Short</option><option value="detailed">Detailed</option></select></label><small id="detail-help">Current ChatGPT replies are kept short regardless of this preference.</small></fieldset>
+<fieldset><legend>Explanations</legend><label>Ask to LLM<select id="askProvider"><option value="chatgpt">Ask with ChatGPT</option><option value="gemini">Ask with Gemini</option><option value="ask">Ask me first</option></select></label><label>Explanation detail<select id="detail" aria-describedby="detail-help"><option value="short">Short</option><option value="detailed">Detailed</option></select></label><small id="detail-help">Current ChatGPT replies are kept short regardless of this preference.</small></fieldset>
 <div class="save-row"><button type="submit">Save settings</button><p id="status" role="status" aria-live="polite"></p></div>
 </form>
 <section class="storage-section" aria-labelledby="storage-title">

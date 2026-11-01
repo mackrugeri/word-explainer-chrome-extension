@@ -1,12 +1,14 @@
-const defaults = { activationMode:"selection", theme:"light", language: "en-US", rate: 1, detail: "detailed", translationLanguage: "Urdu", translationFontSize: 20 };
+const defaults = { askProvider:"ask", activationMode:"selection", theme:"light", language: "en-US", rate: 1, detail: "detailed", translationLanguage: "Urdu", translationFontSize: 20 };
 async function loadSettings() {
   const settings = await chrome.storage.local.get(defaults);
-  for (const key of ["activationMode", "theme", "language", "rate", "detail", "translationLanguage", "translationFontSize"]) document.getElementById(key).value = settings[key];
+  if(!["chatgpt","gemini","ask"].includes(settings.askProvider))settings.askProvider="ask";
+  for (const key of ["askProvider", "activationMode", "theme", "language", "rate", "detail", "translationLanguage", "translationFontSize"]) document.getElementById(key).value = settings[key];
 }
 document.getElementById("settings").addEventListener("submit", async (event) => {
   event.preventDefault();
   try {
     await chrome.storage.local.set({
+      askProvider: ["chatgpt","gemini"].includes(document.getElementById("askProvider").value) ? document.getElementById("askProvider").value : "ask",
       activationMode: document.getElementById("activationMode").value === "shortcut" ? "shortcut" : "selection",
       theme: document.getElementById("theme").value === "dark" ? "dark" : "light",
       language: document.getElementById("language").value,

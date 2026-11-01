@@ -1,5 +1,5 @@
 (() => {
-  const BUILD="0.4.16";
+  const BUILD="0.4.17";
   const pronunciationAndTranslationOnly=typeof location!=="undefined"&&location.hostname==="chatgpt.com";
   let contextSelection="", highlightRange=null, selectionLauncher=null;
   const highlighter=globalThis.WordHighlighter?.createPersistent();
@@ -40,11 +40,11 @@ ${globalThis.WordRichResponse?.css||""}
       <details class="result" id="references-result" hidden open><summary class="status"><span class="dot" aria-hidden="true"></span><span id="references-status">Selection references</span></summary><div class="result-body" tabindex="0" aria-label="Selection references"><div class="answer" id="references-answer"></div></div></details>
       <details class="result" id="summary-result" hidden open><summary class="status"><span class="dot" aria-hidden="true"></span><span id="summary-status">Summary</span></summary><div class="result-body" tabindex="0" aria-label="Summary"><div class="answer" id="summary-answer" dir="auto"></div></div></details>
       <details class="result" id="translation-result" hidden open><summary class="status"><span class="dot" aria-hidden="true"></span><span id="translation-status">Translation</span></summary><div class="result-body" tabindex="0" aria-label="Translation"><button class="speaker" id="listen-translation" type="button" aria-label="Listen to translation" title="Listen to translation" hidden>🔊</button><div class="answer translation" id="translation-answer" dir="auto"></div><div class="speech-note" id="speech-note" role="status"></div></div></details>
-      <div class="footer"><span>Esc to minimize</span><span class="version">v0.4.16</span></div>
+      <div class="footer"><span>Esc to minimize</span><span class="version">v0.4.17</span></div>
     </section><button class="restore-selection" id="restore-selection" type="button" aria-label="Restore selection tools" title="Restore selection tools" aria-controls="selection-card" aria-expanded="false" hidden>‹</button>`;
   globalThis.WordUIIcons?.decorate(root);
   document.documentElement.appendChild(host);
-  let settings = { language:"en-US", rate:1, translationLanguage:"Urdu", translationFontSize:20, readingMode:"reading" };
+  let settings = { askProvider:"ask", language:"en-US", rate:1, translationLanguage:"Urdu", translationFontSize:20, readingMode:"reading" };
   chrome.storage.local.get(settings).then(value => { settings=value;applyTranslationSize();applyReadingMode(); }).catch(()=>{});
   chrome.storage.onChanged.addListener((changes,area)=>{
     if(area!=="local")return;
@@ -360,6 +360,7 @@ ${globalThis.WordRichResponse?.css||""}
   });
   el("ask-llm").addEventListener("click",()=>{
     if(pronunciationAndTranslationOnly)return;
+    if(["chatgpt","gemini"].includes(settings.askProvider)){requestAction("explain",settings.askProvider);return;}
     const choices=el("llm-choices");choices.hidden=!choices.hidden;
     el("ask-llm").setAttribute("aria-expanded",String(!choices.hidden));fitPanel();if(!choices.hidden)choices.scrollIntoView?.({block:"nearest"});
   });

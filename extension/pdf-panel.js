@@ -2,7 +2,7 @@
   const el=id=>document.getElementById(id);
   globalThis.WordUIIcons?.decorate(document);
   if(globalThis.WordRichResponse){const style=document.createElement("style");style.textContent=WordRichResponse.css;document.head.appendChild(style);}
-  let tabId=null,record=null,epoch=0,settings={language:"en-US",rate:1,translationLanguage:"Urdu",translationFontSize:20,readingMode:"reading"},latest=null;
+  let tabId=null,record=null,epoch=0,settings={askProvider:"ask",language:"en-US",rate:1,translationLanguage:"Urdu",translationFontSize:20,readingMode:"reading"},latest=null;
   const languages={Urdu:"ur-PK",English:"en-US",Arabic:"ar",French:"fr-FR",Spanish:"es-ES"};
   function applyReadingMode(){
     const math=settings.readingMode==="math";el("reading-mode").setAttribute("aria-pressed",String(!math));el("math-mode").setAttribute("aria-pressed",String(math));el("equation").hidden=!math;el("paper-explanation").hidden=!math;
@@ -79,7 +79,7 @@
   el("use-selection").addEventListener("click",async()=>{
     try{const [tab]=await chrome.tabs.query({active:true,currentWindow:true});if(!Number.isInteger(tab?.id))throw Error("Open the PDF first.");const reply=await chrome.runtime.sendMessage({type:"PDF_PANEL_SET_SELECTION",tabId:tab.id,text:el("pdf-text").value});if(!reply?.ok)throw Error(reply?.error||"Could not save selection.");el("pdf-text").value="";el("paste-selection").open=false;await refresh();}catch(error){el("notice").textContent=error.message;}
   });
-  el("ask").addEventListener("click",()=>{el("providers").hidden=!el("providers").hidden;el("ask").setAttribute("aria-expanded",String(!el("providers").hidden));el("providers").scrollIntoView?.({block:"nearest"});});
+  el("ask").addEventListener("click",()=>{if(["chatgpt","gemini"].includes(settings.askProvider)){run("explain",settings.askProvider);return;}el("providers").hidden=!el("providers").hidden;el("ask").setAttribute("aria-expanded",String(!el("providers").hidden));el("providers").scrollIntoView?.({block:"nearest"});});
   el("chatgpt").addEventListener("click",()=>run("explain","chatgpt"));
   el("gemini").addEventListener("click",()=>run("explain","gemini"));
   el("listen-translation").addEventListener("click",()=>speak(record?.results.translate?.text,languages[settings.translationLanguage]||"ur-PK"));

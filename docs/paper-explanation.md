@@ -6,4 +6,4 @@ This explicit action sends the exact selection (up to 8,000 characters) and its 
 
 The prompt asks ChatGPT to open/research the URL, explain the equation’s symbols and role in the paper, and cite supporting sections/pages. This does not enable or guarantee ChatGPT browsing. If access fails, the prompt asks ChatGPT to acknowledge that and request an upload or relevant context. A selected page may not actually be a research paper; ChatGPT must verify it. Links requiring authentication or inaccessible papers may need an upload.
 
-Ask to LLM, Summarize, translations, and Equation Pronunciation retain their existing behavior. Build remains 0.4.16.
+Ask to LLM, Summarize, translations, and Equation Pronunciation retain their existing behavior. Build remains 0.4.17.

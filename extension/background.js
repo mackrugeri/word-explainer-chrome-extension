@@ -8,7 +8,7 @@ const pageSummary=globalThis.WordPageSummary?.create({chrome,start:startJob,read
 const pageReferences=globalThis.WordPageReferences?.create({chrome,start:startJob,readJob:()=>readJob()});
 const storageManager=globalThis.WordStorageManager?.create({storage:chrome.storage.local,reviewStore,notesStore,pageSummary,pageReferences});
 // Short acknowledgements; progress and answers arrive as separate messages.
-const BUILD = "0.4.16";
+const BUILD = "0.4.17";
 const JOB_KEY = "activeExplanationJob";
 const TIMEOUT_ALARM = "word-explanation-timeout";
 let starting = false;
