@@ -1,5 +1,5 @@
 (() => {
-  const BUILD="0.4.20";
+  const BUILD="0.4.22";
   const pronunciationAndTranslationOnly=typeof location!=="undefined"&&location.hostname==="chatgpt.com";
   let contextSelection="", highlightRange=null, selectionLauncher=null;
   const highlighter=globalThis.WordHighlighter?.createPersistent();
@@ -24,6 +24,7 @@ button{font:inherit;cursor:pointer;transition:background-color .12s,border-color
 .card{width:min(360px,calc(100vw - 24px));height:calc(100dvh - 24px);max-height:calc(100dvh - 24px);border-radius:12px;box-shadow:-8px 0 32px #15271b18,0 2px 8px #15271b12}.header{position:sticky;top:0;z-index:2;background:var(--we-bg);padding:12px 14px}.footer{position:sticky;bottom:0;background:var(--we-bg)}#drag-handle,#drag-handle:active{cursor:default;touch-action:auto}.restore-selection{position:fixed;right:0;top:104px;width:30px;height:60px;border:1px solid #dce3dc;border-right:0;border-radius:10px 0 0 10px;background:#fff;color:#245d47;box-shadow:-2px 2px 9px #15271b1a;font:28px/1 system-ui;cursor:pointer;opacity:.8}.restore-selection:hover,.restore-selection:focus-visible{opacity:1;outline:2px solid #6ba788;outline-offset:-3px}:host([data-we-theme="dark"]) .restore-selection{background:#1d2720;color:#b3d8bf;border-color:#38473b}
 .card{display:flex;flex-direction:column;overflow:hidden}.header,.highlights,.footer{flex:none}.header{margin-bottom:0}.selection-content{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;padding-top:15px;padding-bottom:8px}.footer{position:static}.highlights{margin-top:0}.actions .action{font-size:12px}.actions #notes-taken{font-size:11px}.actions #selection-references,.actions #cross-context{grid-column:span 3;grid-row:3}.actions #equation-speak,.actions #paper-explanation{grid-column:span 3;grid-row:4;min-height:38px;text-align:center;font-size:12px;color:var(--we-text);background:var(--we-bg)}.actions:has(#llm-choices:not([hidden])) #selection-references,.actions:has(#llm-choices:not([hidden])) #cross-context{grid-row:4}.actions:has(#llm-choices:not([hidden])) #equation-speak,.actions:has(#llm-choices:not([hidden])) #paper-explanation{grid-row:5}
 .selection-tooltip{position:fixed;z-index:4;max-width:min(260px,calc(100vw - 16px));padding:8px 11px;border:1px solid #435c4d;border-radius:7px;background:#233c2e;color:#fff;box-shadow:0 4px 14px #15271b30;font:12px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;text-align:left;white-space:normal;overflow-wrap:anywhere;pointer-events:none}:host([data-we-theme="dark"]) .selection-tooltip{background:#e4efe5;color:#1b3022;border-color:#b7cabc}
+.result{padding:0;margin-top:16px;border-color:#b6cfbf;border-left:3px solid #3a7456;border-radius:10px;background:var(--we-bg);box-shadow:0 2px 8px #245d470c}.result summary.status{padding:11px 12px;margin:0;background:#edf5ef;color:#28523b;font-size:12px;font-weight:650;gap:8px;line-height:1.5}.result summary.status>span:not(.dot){flex:1;min-width:0;overflow-wrap:anywhere}.result summary.status:after{content:"+";flex:none;font-size:17px;font-weight:500}.result[open] summary.status{margin:0;border-bottom:1px solid #d3e3d7}.result[open] summary.status:after{content:"−"}.result .dot{background:#3a7456;width:6px;height:6px}.result .result-body{padding:13px 12px}.result.error{border-color:#d9b7b0;border-left-color:var(--we-error)}.result.error summary.status{background:#fff0ed;color:#923b31}.result.error .dot{background:var(--we-error)}.actions #llm-choices{background:#edf5ef;border-color:#b6cfbf;border-left:3px solid #3a7456;color:#28523b;box-shadow:0 2px 8px #245d470c}.actions #provider-label{font-size:12px;font-weight:650}:host([data-we-theme="dark"]) .result{border-color:#4d6b56;border-left-color:#a8d0b4}:host([data-we-theme="dark"]) .result summary.status,:host([data-we-theme="dark"]) .actions #llm-choices{background:#293f30;color:#e0f0e4;border-color:#4d6b56}:host([data-we-theme="dark"]) .result[open] summary.status{border-bottom-color:#4d6b56}:host([data-we-theme="dark"]) .result .dot{background:#a8d0b4}:host([data-we-theme="dark"]) .result.error summary.status{background:#4c302c;color:#ffc9be}
 ${globalThis.WordRichResponse?.css||""}
     </style>
     <section class="card" id="selection-card" tabindex="-1" aria-label="Word Explainer">
@@ -42,7 +43,7 @@ ${globalThis.WordRichResponse?.css||""}
       <details class="result" id="translation-result" hidden open><summary class="status"><span class="dot" aria-hidden="true"></span><span id="translation-status">Translation</span></summary><div class="result-body" tabindex="0" aria-label="Translation"><button class="speaker" id="listen-translation" type="button" aria-label="Listen to translation" title="Listen to translation" hidden>🔊</button><div class="answer translation" id="translation-answer" dir="auto"></div><div class="speech-note" id="speech-note" role="status"></div></div></details>
       </div>
       <div class="highlights" role="group" aria-label="Highlight selected text"><div class="highlight-header"><span>Highlight</span><button class="highlight-remove" id="remove-highlight" type="button" title="Remove highlights overlapping the selected text">Remove</button></div><div class="highlight-colors" id="highlight-colors"></div><div class="highlight-note" id="highlight-note" role="status" aria-live="polite">Saved locally on this page</div></div>
-      <div class="footer"><span>Esc to minimize</span><span class="version">v0.4.20</span></div>
+      <div class="footer"><span>Esc to minimize</span><span class="version">v0.4.22</span></div>
     </section><button class="restore-selection" id="restore-selection" type="button" aria-label="Restore selection tools" title="Restore selection tools" aria-controls="selection-card" aria-expanded="false" hidden>‹</button><div class="selection-tooltip" id="selection-tooltip" role="tooltip" hidden></div>`;
   globalThis.WordUIIcons?.decorate(root);
   document.documentElement.appendChild(host);
@@ -366,7 +367,7 @@ ${globalThis.WordRichResponse?.css||""}
     pending.set(requestId,job);
     const view=resultView(action);view.section.hidden=false;view.section.className="result loading";
     view.status.textContent=job.stage;view.answer.textContent="";expandSection(action);
-    setBusy(true);fitPanel();
+    setBusy(true);fitPanel();view.section.scrollIntoView?.({block:"nearest"});
     job.timer=setTimeout(()=>{
       complete(requestId,{ok:false,error:"The request timed out. Check the selected AI website and retry."});
       send({type:"CANCEL_EXPLANATION",requestId}).catch(()=>{});
