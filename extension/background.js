@@ -1,5 +1,5 @@
 // Page review storage is isolated from provider automation.
-if (typeof importScripts === "function") importScripts("notes-store.js", "review-store.js", "context-store.js", "context-controller.js", "pdf-selection.js", "paper-explanation.js", "paragraph-summary.js", "storage-manager.js", "rich-response.js", "page-summary.js", "page-references.js", "selection-references.js");
+if (typeof importScripts === "function") importScripts("notes-store.js", "review-store.js", "context-store.js", "context-controller.js", "pdf-selection.js", "paper-explanation.js", "paragraph-summary.js", "storage-manager.js", "rich-response.js", "page-summary.js", "page-references.js", "selection-references.js", "page-data.js");
 const notesStore = globalThis.WordNotesStore.create(chrome.storage.local);
 const reviewStore = globalThis.WordReviewStore.create(chrome.storage.local);
 const contextStore = globalThis.WordContextStore.create(chrome.storage.local);
@@ -7,8 +7,9 @@ const contextController = globalThis.WordContextController.create({chrome,store:
 const pageSummary=globalThis.WordPageSummary?.create({chrome,start:startJob,readJob:()=>readJob()});
 const pageReferences=globalThis.WordPageReferences?.create({chrome,start:startJob,readJob:()=>readJob()});
 const storageManager=globalThis.WordStorageManager?.create({storage:chrome.storage.local,reviewStore,notesStore,pageSummary,pageReferences});
+const pageData=globalThis.WordPageData?.create({chrome,notesStore,reviewStore,pageSummary,pageReferences,cancel:async(url,tabId)=>{const job=await readJob();if(job?.sourceTabId!==tabId||job.task==='context-summary')return;try{if(WordPageData.canonical(job.sourcePageUrl||job.sourceUrl)!==url)return;}catch{return;}await finishJob(job.tabId,{ok:false,error:'Page data cleared.'});}});
 // Short acknowledgements; progress and answers arrive as separate messages.
-const BUILD = "0.4.23";
+const BUILD = "0.4.24";
 const JOB_KEY = "activeExplanationJob";
 const TIMEOUT_ALARM = "word-explanation-timeout";
 let starting = false;
@@ -204,6 +205,7 @@ chrome.commands.onCommand.addListener(async (command, tab) => {
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (sender.id !== chrome.runtime.id || message.target === "translation-audio") return;
+  if(message.type==="CLEAR_PAGE_DATA")return pageData?.handle(message,sender,sendResponse);
   if(message.type?.startsWith("PAGE_REFERENCES_"))return pageReferences?.handle(message,sender,sendResponse);
   if(message.type?.startsWith("PAGE_SUMMARY_"))return pageSummary?.handle(message,sender,sendResponse);
   if (["STORAGE_INSPECT","STORAGE_CLEAR_SITE"].includes(message.type)) {
@@ -241,6 +243,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const operation = message.type === "REVIEW_SAVE" ? reviewStore.save(url, message.record)
       : message.type === "REVIEW_CLEAR" ? reviewStore.clear(url) : reviewStore.list(url);
     operation.then(async items => {
+      if(message.type==="REVIEW_CLEAR"&&chrome.storage.session?.set)await chrome.storage.session.set({wordSelectionClearSignal:{kind:"site",site:url,token:crypto.randomUUID()}});
       items = await notesStore.merge(url, items);
       if(message.type === "REVIEW_EXPORT"){
         if(!items.length)throw new Error("There are no saved summaries to download.");
@@ -303,7 +306,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         error => notify(sender.tab.id, { type: "EXPLANATION_RESULT", requestId: message.requestId, ok: false, error: error.message },sender.frameId||0)
       );
     } else {
-      startJob(text, sender.tab.id, message.requestId, provider, {sourceFrameId:sender.frameId||0,...(isReferences ? {task:"selection-references"} : isPaper ? {task:"paper-explanation",sourceUrl:message.sourceUrl} : isSummary ? {task:"paragraph-summary"} : {})}).catch(error => notify(sender.tab.id, {
+      startJob(text, sender.tab.id, message.requestId, provider, {sourceFrameId:sender.frameId||0,sourcePageUrl:sender.url||sender.tab.url,...(isReferences ? {task:"selection-references"} : isPaper ? {task:"paper-explanation",sourceUrl:message.sourceUrl} : isSummary ? {task:"paragraph-summary"} : {})}).catch(error => notify(sender.tab.id, {
         type: "EXPLANATION_RESULT", requestId: message.requestId, ok: false, error: error.message
       },sender.frameId||0));
     }

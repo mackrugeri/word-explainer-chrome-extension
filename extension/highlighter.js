@@ -145,6 +145,7 @@
       return missing ? `${missing} saved highlight${missing===1?'':'s'} awaiting a matching passage.` : 'Saved locally · restored when this page reopens.';
     }
     return {...core, persistent:true, ready, apply:(range,color)=>mutate(range,color), remove:range=>mutate(range,null), status,
+      clearPage(){const target=page();const task=queue.catch(()=>{}).then(async()=>{if(storage.remove)await storage.remove(key(target));else await storage.set({[key(target)]:{version:1,items:[]}});if(target===page()&&!disposed){++epoch;records=[];core.replace([]);}});queue=task;return task;},
       dispose(){disposed=true;clearInterval(interval);clearTimeout(timer);observer.disconnect();globalThis.chrome?.storage?.onChanged?.removeListener?.(changed);}
     };
   }

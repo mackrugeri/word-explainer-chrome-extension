@@ -87,7 +87,7 @@
       }
       (message.type==='PAGE_REFERENCES_START'?begin(message.refresh===true,sourceTab):get(message.url||(sourceTab?.url))).then(record=>reply({ok:true,record})).catch(error=>reply({ok:false,error:error.message}));return true;
     }
-    return{handle,notify,clearSite:site=>run(async()=>{await chrome.storage.local.set({[CACHE]:(await cache()).filter(item=>new URL(item.url).origin!==site)});const live=await read();if(live?.status==='complete'&&new URL(live.url).origin===site)await chrome.storage.session.remove(KEY);})};
+    return{handle,notify,clearPage:url=>run(async()=>{await chrome.storage.local.set({[CACHE]:(await cache()).filter(item=>!same(item.url,url))});const live=await read();if(live&&same(live.url,url))await chrome.storage.session.remove(KEY);}),clearSite:site=>run(async()=>{await chrome.storage.local.set({[CACHE]:(await cache()).filter(item=>new URL(item.url).origin!==site)});const live=await read();if(live?.status==='complete'&&new URL(live.url).origin===site)await chrome.storage.session.remove(KEY);})};
   }
   globalThis.WordPageReferences={prompt,parse,create};
 })();

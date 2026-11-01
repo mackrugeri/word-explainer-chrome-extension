@@ -12,7 +12,7 @@
    entries.push(entry);index=entries.length-1;trim();return entry;
   }
   function update(id,result){ensure();const entry=entries.find(item=>item.id===id);if(!entry)return;const key=result.action==='paper-explanation'?'explain':result.action;entry.results.delete(key);entry.results.set(key,result);entry.bytes=(entry.text.length+entry.paperSelection.length+entry.signature.length+JSON.stringify([...entry.results.values()]).length)*2;trim();}
-  return{remember,update,current(){ensure();return entries[index]||null;},position(){ensure();return{index,count:entries.length};},move(delta){ensure();const next=index+delta;if(next<0||next>=entries.length)return null;index=next;return entries[index];}};
+  return{remember,update,clear(){entries=[];index=-1;source=page();},current(){ensure();return entries[index]||null;},position(){ensure();return{index,count:entries.length};},move(delta){ensure();const next=index+delta;if(next<0||next>=entries.length)return null;index=next;return entries[index];}};
  }
  globalThis.WordSelectionHistory={create};
 })();

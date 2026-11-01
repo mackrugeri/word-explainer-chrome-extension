@@ -104,8 +104,8 @@
     finally { button.disabled=!items.length; }
   });
   el('clear').addEventListener('click', async () => {
-    const current = ++epoch; el('clear').disabled = true;
-    try { const records = await send('REVIEW_CLEAR'); if (current === epoch) render(records); }
+    const current = ++epoch,clearedSite=page; el('clear').disabled = true;
+    try { const records = await send('REVIEW_CLEAR');globalThis.WordSelectionUI?.clearHistory?.({site:clearedSite,kind:'site'}); if (current === epoch) render(records); }
     catch { el('status').textContent = 'Could not clear this site’s review. Please retry.'; el('clear').disabled = !items.length; }
   });
   globalThis.WordReviewPanel = {

@@ -100,5 +100,7 @@ try{
   let failed=false;try{await bounded.apply(passage('mixed'),'red');}catch(e){failed=/full/.test(e.message);}
   if(!failed||(await store.get(key))[key].items.length!==80)throw Error('Storage bounds lost saved highlights');bounded.dispose();
  });
+ const clearing=await context.newPage();await clearing.goto('https://example.test/chapter?view=clear');await boot(clearing);
+ await clearing.evaluate(async()=>{const applying=api.apply(passage('mixed'),'green'),clearing=api.clearPage();await Promise.all([applying,clearing]);if((await store.get('wordHighlightsV1:'+location.href))['wordHighlightsV1:'+location.href])throw Error('A pending highlight write recreated cleared data');if(painted('green').length)throw Error('Cleared highlight remains visible');});
  console.log('PASS: persistent popup/active states, colors after reload/reopen, repeated quote/context anchors, cross-element ranges, durable recolor/removal, changed/missing/ambiguous text, late text restoration, SPA/query isolation, concurrent controller merges, storage failure and bounded-data preservation.');
 }finally{await browser.close();}

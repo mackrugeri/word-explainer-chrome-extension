@@ -61,6 +61,6 @@
   const observer=new MutationObserver(events=>{if(events.some(e=>!host.contains(e.target)))schedule();});observer.observe(document.body,{childList:true,subtree:true,characterData:true});
   addEventListener('scroll',schedule,true);addEventListener('resize',schedule);setInterval(()=>{if(page()!==currentUrl){currentUrl=page();generation++;notes=[];iconOffsets.clear();dragging=null;el('editor').hidden=true;load();}},1000);
   chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&changes.wordPersonalNotesV1)load();});
-  globalThis.WordNotesPanel={open(range){const anchor=WordNotesAnchor.capture(document,range);if(!anchor)return false;const existing=notes.find(n=>JSON.stringify(n.anchor)===JSON.stringify(anchor));open(existing||{anchor,body:''});return true;}};
+  globalThis.WordNotesPanel={clearPageUI(){generation++;editing=null;notes=[];el("editor").hidden=true;el("body").value="";el("icons").replaceChildren();el("missing").hidden=true;iconOffsets.clear();dragging=null;},open(range){const anchor=WordNotesAnchor.capture(document,range);if(!anchor)return false;const existing=notes.find(n=>JSON.stringify(n.anchor)===JSON.stringify(anchor));open(existing||{anchor,body:''});return true;}};
   load();
 })();

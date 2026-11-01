@@ -8,3 +8,5 @@ for(let i=0;i<30;i++)h.remember(make('term'+i));assert.equal(h.position().count,
 page='page-b';assert.equal(h.current(),null);assert.equal(h.position().count,0);h.update(a.id,{action:'explain',text:'Old page answer'});assert.equal(h.position().count,0);
 const bounded=api.WordSelectionHistory.create({page:()=>page,maxBytes:3000});const first=bounded.remember(make('first'));bounded.update(first.id,{action:'explain',text:'x'.repeat(900)});const second=bounded.remember(make('second'));bounded.update(second.id,{action:'explain',text:'y'.repeat(900)});assert.equal(bounded.position().count,1);assert.equal(bounded.current().text,'second');
 console.log('PASS: selection history bounds, answer retention, late-response isolation, duplicate selection, branching, byte budget and page isolation.');
+
+const old=bounded.current().id;bounded.clear();const fresh=bounded.remember(make("fresh"));assert.ok(fresh.id>old);bounded.update(old,{action:"explain",text:"Ignored old answer"});assert.equal(bounded.current().results.size,0);

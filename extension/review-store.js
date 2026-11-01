@@ -66,6 +66,11 @@
         await storage.set({ [KEY]: next.slice(-MAX_PAGES) });
         return page.items;
       }); },
+      clearPage(url) { return run(async()=>{
+        const target=new URL(url);target.hash='';const site=pageKey(url),pages=await read();
+        for(const record of pages)if(record.url===site){record.items=record.items.map(item=>({...item,notes:item.notes.filter(note=>{try{const source=new URL(note.sourceUrl||record.url);source.hash='';return source.href!==target.href;}catch{return true;}})})).filter(item=>item.notes.length);}
+        await storage.set({[KEY]:pages.filter(record=>record.items.length)});
+      }); },
       clear(url) { return run(async () => {
         const key = pageKey(url); await storage.set({ [KEY]: (await read()).filter(page => page.url !== key) }); return [];
       }); }

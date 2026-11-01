@@ -1,5 +1,5 @@
 (() => {
-  const BUILD="0.4.23";
+  const BUILD="0.4.24";
   const pronunciationAndTranslationOnly=typeof location!=="undefined"&&location.hostname==="chatgpt.com";
   let contextSelection="", highlightRange=null, selectionLauncher=null;
   const highlighter=globalThis.WordHighlighter?.createPersistent();
@@ -45,7 +45,7 @@ ${globalThis.WordRichResponse?.css||""}
       <details class="result" id="translation-result" hidden open><summary class="status"><span class="dot" aria-hidden="true"></span><span id="translation-status">Translation</span></summary><div class="result-body" tabindex="0" aria-label="Translation"><button class="speaker" id="listen-translation" type="button" aria-label="Listen to translation" title="Listen to translation" hidden>🔊</button><div class="answer translation" id="translation-answer" dir="auto"></div><div class="speech-note" id="speech-note" role="status"></div></div></details>
       </div>
       <div class="highlights" role="group" aria-label="Highlight selected text"><div class="highlight-header"><span>Highlight</span><button class="highlight-remove" id="remove-highlight" type="button" title="Remove highlights overlapping the selected text">Remove</button></div><div class="highlight-colors" id="highlight-colors"></div><div class="highlight-note" id="highlight-note" role="status" aria-live="polite">Saved locally on this page</div></div>
-      <div class="footer"><span>Esc to minimize</span><span class="version">v0.4.23</span></div>
+      <div class="footer"><span>Esc to minimize</span><span class="version">v0.4.24</span></div>
     </section><button class="restore-selection" id="restore-selection" type="button" aria-label="Restore selection tools" title="Restore selection tools" aria-controls="selection-card" aria-expanded="false" hidden>‹</button><div class="selection-tooltip" id="selection-tooltip" role="tooltip" hidden></div>`;
   globalThis.WordUIIcons?.decorate(root);
   document.documentElement.appendChild(host);
@@ -74,6 +74,7 @@ ${globalThis.WordRichResponse?.css||""}
   let settings = { askProvider:"ask", language:"en-US", rate:1, translationLanguage:"Urdu", translationFontSize:20, readingMode:"reading" };
   chrome.storage.local.get(settings).then(value => { settings=value;applyTranslationSize();applyReadingMode(); }).catch(()=>{});
   chrome.storage.onChanged.addListener((changes,area)=>{
+    if(area==="session"&&changes.wordSelectionClearSignal?.newValue){clearSelectionHistory(changes.wordSelectionClearSignal.newValue);return;}
     if(area!=="local")return;
     for(const key of Object.keys(settings))if(changes[key])settings[key]=changes[key].newValue;
     applyTranslationSize();applyReadingMode();
@@ -99,6 +100,9 @@ ${globalThis.WordRichResponse?.css||""}
   function updateHistoryControls(){const position=history?.position()||{index:-1,count:0};el("history-previous").disabled=position.index<=0;el("history-next").disabled=position.index<0||position.index>=position.count-1;el("history-position").textContent=`${position.index+1} / ${position.count}`;}
   function moveHistory(direction){
     const entry=history?.move(direction);if(!entry){updateHistoryControls();return;}
+    displayHistoryEntry(entry);
+  }
+  function displayHistoryEntry(entry){
     hide();if(plainUtterance){plainUtterance=null;speechSynthesis.cancel();}
     paperSelection=entry.paperSelection;paperSourceUrl=entry.sourceUrl;selectedText=entry.text;contextSelection=entry.text;selectedAction=entry.action;selectedProvider=entry.provider;
     let range=entry.range;
@@ -107,6 +111,14 @@ ${globalThis.WordRichResponse?.css||""}
     if(range){selection.addRange(range.cloneRange());entry.range=range.cloneRange();const rect=range.getBoundingClientRect();if(rect.top<0||rect.bottom>innerHeight)(range.startContainer.nodeType===1?range.startContainer:range.startContainer.parentElement)?.scrollIntoView?.({block:"center",behavior:"instant"});}
     highlightRange=range||null;el("equation-note").textContent="";el("history-note").textContent=range?"":"The original passage is no longer available here. Saved answers are still shown.";el("history-note").hidden=!!range;
     paintSelection(entry.embedded,entry);
+  }
+  function clearSelectionHistory(scope={}){
+    try{if(scope.site&&new URL(location.href).origin!==scope.site)return;if(scope.url&&new URL(scope.url).href.split("#")[0]!==location.href.split("#")[0])return;}catch{return;}
+    for(const [requestId,job]of pending){clearTimeout(job.timer);send({type:"CANCEL_EXPLANATION",requestId}).catch(()=>{});}pending.clear();activeRequest=null;answers.clear();history?.clear();
+    selectedText="";contextSelection="";paperSelection="";paperSourceUrl="";highlightRange=null;spokenTranslation=null;
+    if(plainUtterance){plainUtterance=null;speechSynthesis.cancel();}hide();updateHistoryControls();setBusy(false);
+    for(const id of ["result","references-result","summary-result","translation-result"])el(id).hidden=true;
+    if(scope.kind==="page"){highlighter?.clearPage?.().catch(()=>{});selectionLauncher?.hide();globalThis.WordNotesPanel?.clearPageUI?.();window.getSelection()?.removeAllRanges();}
   }
   el("history-previous").addEventListener("click",()=>moveHistory(-1));el("history-next").addEventListener("click",()=>moveHistory(1));
 
@@ -161,7 +173,7 @@ ${globalThis.WordRichResponse?.css||""}
   });
   applyReadingMode();
   let spokenTranslation=null, speechId=null, returnFocus=null, plainUtterance=null, minimized=false;
-  const hide=()=>{ hideTooltip();minimized=false;el("restore-selection").hidden=true;el("selection-card").hidden=false;host.style.display="none";el("llm-choices").hidden=true;el("ask-llm").setAttribute("aria-expanded","false");stopTranslationSpeech();stopEquationSpeech(); };
+  const hide=()=>{ hideTooltip();const keep=!!history?.position().count;minimized=keep;el("restore-selection").hidden=!keep;el("selection-card").hidden=keep;host.style.display=keep?"block":"none";el("llm-choices").hidden=true;el("ask-llm").setAttribute("aria-expanded","false");stopTranslationSpeech();stopEquationSpeech(); };
   const dismiss=()=>{
     hide();
     if(plainUtterance){plainUtterance=null;speechSynthesis.cancel();}
@@ -174,6 +186,7 @@ ${globalThis.WordRichResponse?.css||""}
     if(focus)el("restore-selection").focus?.({preventScroll:true});
   }
   function restoreSelection(){
+    const entry=history?.current();if(entry){displayHistoryEntry(entry);return;}
     if(!selectedText)return;
     minimized=false;el("restore-selection").hidden=true;el("selection-card").hidden=false;host.style.display="block";fitPanel();
     el("selection-card").focus?.({preventScroll:true});
@@ -414,6 +427,6 @@ ${globalThis.WordRichResponse?.css||""}
   el("gemini").addEventListener("click",()=>requestAction("explain","gemini"));
   el("translate").addEventListener("click",()=>requestAction("translate"));
   if(!pronunciationAndTranslationOnly&&window.top===window){globalThis.WordReviewPanel?.useDock?.();globalThis.WordFloatingTools?.create({openSelection:action=>{if(!showSelection())return false;if(action)el(action)?.click();return true;},mountReview:(container,onClose)=>globalThis.WordReviewPanel?.mount?.(container,onClose)||false});}
-  globalThis.WordSelectionUI={open:()=>showSelection()};
+  globalThis.WordSelectionUI={open:()=>showSelection(),clearHistory:clearSelectionHistory};
   selectionLauncher=globalThis.WordSelectionLauncher?.create({open:()=>showSelection(),isPanelOpen:()=>host.style.display==="block"&&!minimized});
 })();
