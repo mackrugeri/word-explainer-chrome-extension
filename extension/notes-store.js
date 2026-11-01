@@ -15,8 +15,15 @@
         if(!anchor||typeof anchor.exact!=='string'||!anchor.exact.trim()||anchor.exact.length>8000||!['prefix','suffix'].every(k=>typeof anchor[k]==='string'&&anchor[k].length<=80))throw Error('Select the passage again.');
         const records=await read(),canonical=page(url);
         const existing=records.find(n=>n.id===record.id&&n.url===canonical);
-        const note={id:existing?.id||crypto.randomUUID(),url:canonical,body:value,anchor:{exact:anchor.exact,prefix:anchor.prefix,suffix:anchor.suffix},updatedAt:Date.now()};
+        const note={id:existing?.id||crypto.randomUUID(),url:canonical,body:value,anchor:{exact:anchor.exact,prefix:anchor.prefix,suffix:anchor.suffix},updatedAt:Date.now(),...(existing?.iconOffset?{iconOffset:existing.iconOffset}:{})};
         await storage.set({[KEY]:[...records.filter(n=>n.id!==note.id),note].slice(-400)});return note;
+      }),
+      moveIcon:(url,id,offset)=>run(async()=>{
+        if(!offset||!['x','y'].every(key=>Number.isFinite(offset[key])&&Math.abs(offset[key])<=10000))throw Error('Choose an icon position within the page.');
+        const canonical=page(url),records=await read(),note=records.find(n=>n.url===canonical&&n.id===id);
+        if(!note)throw Error('This note is no longer available.');
+        note.iconOffset={x:Math.round(offset.x),y:Math.round(offset.y)};
+        await storage.set({[KEY]:records});return note.iconOffset;
       }),
       remove:(url,id)=>run(async()=>{const canonical=page(url);await storage.set({[KEY]:(await read()).filter(n=>!(n.url===canonical&&n.id===id))});}),
       clearSite:url=>run(async()=>{const origin=new URL(page(url)).origin;await storage.set({[KEY]:(await read()).filter(n=>{try{return new URL(n.url).origin!==origin;}catch{return true;}})});}),

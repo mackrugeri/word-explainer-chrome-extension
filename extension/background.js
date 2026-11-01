@@ -8,7 +8,7 @@ const pageSummary=globalThis.WordPageSummary?.create({chrome,start:startJob,read
 const pageReferences=globalThis.WordPageReferences?.create({chrome,start:startJob,readJob:()=>readJob()});
 const storageManager=globalThis.WordStorageManager?.create({storage:chrome.storage.local,reviewStore,notesStore,pageSummary,pageReferences});
 // Short acknowledgements; progress and answers arrive as separate messages.
-const BUILD = "0.4.14";
+const BUILD = "0.4.15";
 const JOB_KEY = "activeExplanationJob";
 const TIMEOUT_ALARM = "word-explanation-timeout";
 let starting = false;
@@ -225,11 +225,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if(message.type==="OPEN_RESEARCH_CONTEXTS"){chrome.tabs.create({url:chrome.runtime.getURL("contexts.html"),active:true}).then(()=>sendResponse({ok:true}),()=>sendResponse({ok:false}));return true;}
   if (message.type === "OPEN_CONTEXTS" || message.type?.startsWith("CONTEXT_")) return contextController.handle(message,sender,sendResponse);
   if (!sender.tab) return;
-  if (["NOTES_LIST","NOTES_SAVE","NOTES_DELETE"].includes(message.type)) {
+  if (["NOTES_LIST","NOTES_SAVE","NOTES_DELETE","NOTES_MOVE"].includes(message.type)) {
     let url;
     try { url=WordNotesStore.page(sender.url || sender.tab.url);if(url!==WordNotesStore.page(message.pageUrl))throw Error("The page changed. Select the passage again."); }
     catch(error){sendResponse({ok:false,error:error.message});return;}
-    const operation=message.type==="NOTES_SAVE"?notesStore.save(url,message.record):message.type==="NOTES_DELETE"?notesStore.remove(url,message.record?.id):notesStore.list(url);
+    const operation=message.type==="NOTES_MOVE"?notesStore.moveIcon(url,message.record?.id,message.record?.iconOffset):message.type==="NOTES_SAVE"?notesStore.save(url,message.record):message.type==="NOTES_DELETE"?notesStore.remove(url,message.record?.id):notesStore.list(url);
     operation.then(result=>sendResponse({ok:true,notes:message.type==="NOTES_LIST"?result:undefined})).catch(error=>sendResponse({ok:false,error:error.message}));return true;
   }
   if (["REVIEW_LIST", "REVIEW_SAVE", "REVIEW_CLEAR", "REVIEW_EXPORT"].includes(message.type)) {

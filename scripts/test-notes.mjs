@@ -8,6 +8,10 @@ const saved=await store.save(url,{anchor,body:'یہ میرا ذاتی نوٹ ہ�
 store=ctx.WordNotesStore.create(storage);assert.equal((await store.list(url))[0].id,saved.id,'Persistent across store restart');
 await store.save(url,{...saved,body:'Updated note'});assert.equal((await store.list(url)).length,1);
 await assert.rejects(store.save(url,{anchor,body:'word '.repeat(101)}));await assert.rejects(store.save(url,{anchor:{exact:'word'},body:'note'}));
+const beforeMove=(await store.list(url))[0];await store.moveIcon(url,saved.id,{x:72.4,y:81.6});
+store=ctx.WordNotesStore.create(storage);const afterMove=(await store.list(url))[0];assert.equal(afterMove.iconOffset.x,72);assert.equal(afterMove.iconOffset.y,82);assert.equal(afterMove.body,beforeMove.body);assert.equal(afterMove.updatedAt,beforeMove.updatedAt);
+await store.save(url,{...afterMove,body:'Updated note'});assert.equal((await store.list(url))[0].iconOffset.x,72,'Editing preserves icon position');
+await assert.rejects(store.moveIcon('https://example.com/other',saved.id,{x:0,y:0}));for(const offset of [{x:Infinity,y:0},{x:0,y:NaN},{x:10001,y:0}])await assert.rejects(store.moveIcon(url,saved.id,offset));
 await store.save('https://other.example/chapter',{anchor,body:'Other site'});
 assert.equal((await store.list(url)).length,1,'Site isolation');
 const reviews=ctx.WordReviewStore.create(storage);await reviews.save(url,{text:'word',action:'explain',answer:'AI explanation.'});await reviews.save(url,{text:'word',action:'translate',answer:'لفظ'});

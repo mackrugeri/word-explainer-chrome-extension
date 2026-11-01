@@ -9,3 +9,5 @@ Anchors retain the exact selected quote and up to 80 characters before and after
 Notes Taken and CSS Highlights support normal webpage text and Google Skills lesson frames on the supported Skills/Google Storage hosts. The popup runs inside the lesson so its notes and highlights retain the actual passage range. Chrome's protected native PDF viewer cannot host these inline icons; use its separate PDF actions panel for selectable text.
 
 Validation: test-notes.mjs covers restart persistence, word limits, site/page isolation, bounded storage, edits/deletion, Review merging and ambiguous/changed quote matching. test-notes-browser.cjs uses Playwright with Chrome to verify cross-element anchoring, Urdu editing, icons, unchanged page markup, DOM changes and fallback. Provider tests remain mocked and do not certify live ChatGPT/Gemini service behavior.
+
+Pencil icons can be dragged away from the text. Their bounded offset is stored locally on drag end, follows the passage on scroll, and survives page reload. A normal click still opens the note; a drag does not. Moving an icon changes neither the note body nor its passage anchor.
