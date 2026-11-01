@@ -1,0 +1,10 @@
+import fs from 'node:fs/promises';import vm from 'node:vm';import assert from 'node:assert/strict';
+const api={};vm.runInNewContext(await fs.readFile(new URL('../extension/selection-history.js',import.meta.url),'utf8'),api);let page='page-a';
+const make=text=>({text,paperSelection:text,sourceUrl:'https://example.test/',anchor:{exact:text,prefix:'',suffix:''},range:null,action:'explain',provider:'chatgpt'});
+const h=api.WordSelectionHistory.create({page:()=>page});let a=h.remember(make('system'));h.update(a.id,{action:'explain',text:'System answer'});h.update(a.id,{action:'translate',text:'Translated system'});assert.equal(h.remember(make('system')).id,a.id);assert.equal(h.position().count,1);
+let b=h.remember(make('code'));assert.equal(h.move(-1).text,'system');assert.equal(h.current().results.size,2);h.update(b.id,{action:'explain',text:'Late code answer'});assert.equal(h.current().text,'system');assert.equal(h.move(1).results.get('explain').text,'Late code answer');
+h.remember(make('model'));h.move(-1);h.remember(make('data'));assert.equal(h.position().count,3);assert.equal(h.move(1),null);assert.equal(h.move(-1).text,'code');
+for(let i=0;i<30;i++)h.remember(make('term'+i));assert.equal(h.position().count,20);for(let i=0;i<19;i++)h.move(-1);assert.equal(h.move(-1),null);
+page='page-b';assert.equal(h.current(),null);assert.equal(h.position().count,0);h.update(a.id,{action:'explain',text:'Old page answer'});assert.equal(h.position().count,0);
+const bounded=api.WordSelectionHistory.create({page:()=>page,maxBytes:3000});const first=bounded.remember(make('first'));bounded.update(first.id,{action:'explain',text:'x'.repeat(900)});const second=bounded.remember(make('second'));bounded.update(second.id,{action:'explain',text:'y'.repeat(900)});assert.equal(bounded.position().count,1);assert.equal(bounded.current().text,'second');
+console.log('PASS: selection history bounds, answer retention, late-response isolation, duplicate selection, branching, byte budget and page isolation.');

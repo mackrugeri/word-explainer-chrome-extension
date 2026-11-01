@@ -1,5 +1,5 @@
 (() => {
-  const BUILD="0.4.22";
+  const BUILD="0.4.23";
   const pronunciationAndTranslationOnly=typeof location!=="undefined"&&location.hostname==="chatgpt.com";
   let contextSelection="", highlightRange=null, selectionLauncher=null;
   const highlighter=globalThis.WordHighlighter?.createPersistent();
@@ -25,14 +25,16 @@ button{font:inherit;cursor:pointer;transition:background-color .12s,border-color
 .card{display:flex;flex-direction:column;overflow:hidden}.header,.highlights,.footer{flex:none}.header{margin-bottom:0}.selection-content{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;padding-top:15px;padding-bottom:8px}.footer{position:static}.highlights{margin-top:0}.actions .action{font-size:12px}.actions #notes-taken{font-size:11px}.actions #selection-references,.actions #cross-context{grid-column:span 3;grid-row:3}.actions #equation-speak,.actions #paper-explanation{grid-column:span 3;grid-row:4;min-height:38px;text-align:center;font-size:12px;color:var(--we-text);background:var(--we-bg)}.actions:has(#llm-choices:not([hidden])) #selection-references,.actions:has(#llm-choices:not([hidden])) #cross-context{grid-row:4}.actions:has(#llm-choices:not([hidden])) #equation-speak,.actions:has(#llm-choices:not([hidden])) #paper-explanation{grid-row:5}
 .selection-tooltip{position:fixed;z-index:4;max-width:min(260px,calc(100vw - 16px));padding:8px 11px;border:1px solid #435c4d;border-radius:7px;background:#233c2e;color:#fff;box-shadow:0 4px 14px #15271b30;font:12px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;text-align:left;white-space:normal;overflow-wrap:anywhere;pointer-events:none}:host([data-we-theme="dark"]) .selection-tooltip{background:#e4efe5;color:#1b3022;border-color:#b7cabc}
 .result{padding:0;margin-top:16px;border-color:#b6cfbf;border-left:3px solid #3a7456;border-radius:10px;background:var(--we-bg);box-shadow:0 2px 8px #245d470c}.result summary.status{padding:11px 12px;margin:0;background:#edf5ef;color:#28523b;font-size:12px;font-weight:650;gap:8px;line-height:1.5}.result summary.status>span:not(.dot){flex:1;min-width:0;overflow-wrap:anywhere}.result summary.status:after{content:"+";flex:none;font-size:17px;font-weight:500}.result[open] summary.status{margin:0;border-bottom:1px solid #d3e3d7}.result[open] summary.status:after{content:"−"}.result .dot{background:#3a7456;width:6px;height:6px}.result .result-body{padding:13px 12px}.result.error{border-color:#d9b7b0;border-left-color:var(--we-error)}.result.error summary.status{background:#fff0ed;color:#923b31}.result.error .dot{background:var(--we-error)}.actions #llm-choices{background:#edf5ef;border-color:#b6cfbf;border-left:3px solid #3a7456;color:#28523b;box-shadow:0 2px 8px #245d470c}.actions #provider-label{font-size:12px;font-weight:650}:host([data-we-theme="dark"]) .result{border-color:#4d6b56;border-left-color:#a8d0b4}:host([data-we-theme="dark"]) .result summary.status,:host([data-we-theme="dark"]) .actions #llm-choices{background:#293f30;color:#e0f0e4;border-color:#4d6b56}:host([data-we-theme="dark"]) .result[open] summary.status{border-bottom-color:#4d6b56}:host([data-we-theme="dark"]) .result .dot{background:#a8d0b4}:host([data-we-theme="dark"]) .result.error summary.status{background:#4c302c;color:#ffc9be}
+ .history-nav{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:7px 14px;border-bottom:1px solid var(--we-line);background:var(--we-soft);flex:none}.history-nav button{display:grid;place-items:center;width:32px;height:28px;border:1px solid var(--we-line);border-radius:6px;background:var(--we-bg);color:var(--we-accent);font-size:18px}.history-nav button:disabled{cursor:default;opacity:.35}.history-nav button:not(:disabled):hover{border-color:var(--we-accent)}#history-position{color:var(--we-muted);font-size:11px;font-variant-numeric:tabular-nums}.history-note{margin:8px 16px;font-size:11px;color:var(--we-muted)}
 ${globalThis.WordRichResponse?.css||""}
     </style>
     <section class="card" id="selection-card" tabindex="-1" aria-label="Word Explainer">
       <div class="header" id="drag-handle" title="Selection tools"><span class="mark" aria-hidden="true">W</span><div class="brand-stack"><span class="brand">Word Explainer</span><span class="tagline">Selection tools</span></div><button class="settings" id="open-settings" type="button" aria-label="Settings" title="Settings">⚙</button><button class="close" id="minimize-selection" type="button" aria-label="Minimize selection tools" title="Minimize to edge">›</button><button class="close" id="close" type="button" aria-label="Close">×</button></div>
+      <nav class="history-nav" aria-label="Selection history"><button id="history-previous" type="button" aria-label="Previous selection" title="Previous selection" disabled>←</button><span id="history-position" role="status" aria-live="polite">0 / 0</span><button id="history-next" type="button" aria-label="Next selection" title="Next selection" disabled>→</button></nav>
       <div class="selection-content">
       <div class="reading-modes" role="group" aria-label="Reading mode"><button id="reading-mode" type="button" aria-pressed="true">Reading</button><button id="math-mode" type="button" aria-pressed="false">Math article</button></div>
       <div class="selection-label">Selected text</div>
-      <div class="word" id="word" dir="auto"></div>
+      <div class="word" id="word" dir="auto" aria-live="polite"></div><p class="history-note" id="history-note" role="status" hidden></p>
       <div class="actions" id="actions"><button class="action primary" id="ask-llm" type="button" aria-expanded="false" aria-controls="llm-choices">Ask to LLM</button><button class="action" id="summarize" type="button">Summarize</button><div class="llm-choices" id="llm-choices" role="group" aria-label="Choose an AI provider" hidden><span id="provider-label">Choose a provider</span><div class="provider-actions"><button class="action primary" id="explain" type="button">ChatGPT</button><button class="action primary" id="gemini" type="button">Gemini</button></div></div><button class="action" id="speak" type="button">Listen</button><button class="action" id="translate" type="button">Translate</button><button class="action" id="notes-taken" type="button" aria-label="Notes Taken" title="Notes Taken">Notes</button><button class="action" id="selection-references" type="button" aria-label="Selection references" title="Selection references">References</button><button class="action" id="cross-context" type="button" aria-label="Cross-page context" title="Cross-page context">Context</button><button class="action" id="equation-speak" type="button" aria-label="Greek alphabet pronunciation" title="Greek alphabet pronunciation" aria-pressed="false">Greek</button><button class="action" id="paper-explanation" type="button" aria-label="Explain mathematical equation from this paper" title="Explain mathematical equation from this paper">Equation</button></div>
       <p class="mode-note" id="math-mode-note" role="status" hidden></p>
       <div id="equation-note" class="equation-note" role="status" aria-live="polite"></div>
@@ -43,7 +45,7 @@ ${globalThis.WordRichResponse?.css||""}
       <details class="result" id="translation-result" hidden open><summary class="status"><span class="dot" aria-hidden="true"></span><span id="translation-status">Translation</span></summary><div class="result-body" tabindex="0" aria-label="Translation"><button class="speaker" id="listen-translation" type="button" aria-label="Listen to translation" title="Listen to translation" hidden>🔊</button><div class="answer translation" id="translation-answer" dir="auto"></div><div class="speech-note" id="speech-note" role="status"></div></div></details>
       </div>
       <div class="highlights" role="group" aria-label="Highlight selected text"><div class="highlight-header"><span>Highlight</span><button class="highlight-remove" id="remove-highlight" type="button" title="Remove highlights overlapping the selected text">Remove</button></div><div class="highlight-colors" id="highlight-colors"></div><div class="highlight-note" id="highlight-note" role="status" aria-live="polite">Saved locally on this page</div></div>
-      <div class="footer"><span>Esc to minimize</span><span class="version">v0.4.22</span></div>
+      <div class="footer"><span>Esc to minimize</span><span class="version">v0.4.23</span></div>
     </section><button class="restore-selection" id="restore-selection" type="button" aria-label="Restore selection tools" title="Restore selection tools" aria-controls="selection-card" aria-expanded="false" hidden>‹</button><div class="selection-tooltip" id="selection-tooltip" role="tooltip" hidden></div>`;
   globalThis.WordUIIcons?.decorate(root);
   document.documentElement.appendChild(host);
@@ -67,7 +69,7 @@ ${globalThis.WordRichResponse?.css||""}
   root.addEventListener("pointerout",event=>{if(tooltipButton&&!tooltipButton.contains(event.relatedTarget))hideTooltip();});
   root.addEventListener("focusin",event=>showTooltip(event.target.closest?.("button[data-tooltip]")));
   root.addEventListener("focusout",hideTooltip);root.addEventListener("pointerdown",hideTooltip);
-  root.addEventListener("scroll",hideTooltip,true);window.addEventListener("resize",hideTooltip);
+  root.addEventListener("scroll",()=>{if(tooltipButton&&root.activeElement===tooltipButton)showTooltip(tooltipButton);else hideTooltip();},true);window.addEventListener("resize",hideTooltip);
 
   let settings = { askProvider:"ask", language:"en-US", rate:1, translationLanguage:"Urdu", translationFontSize:20, readingMode:"reading" };
   chrome.storage.local.get(settings).then(value => { settings=value;applyTranslationSize();applyReadingMode(); }).catch(()=>{});
@@ -91,8 +93,23 @@ ${globalThis.WordRichResponse?.css||""}
     }
   }
   const pending = new Map();
-  const answers = new Map();
+  const answers = new Map();let answerPage=location.href.split("#")[0];
   const el=(id)=>root.getElementById(id);
+  const history=globalThis.WordSelectionHistory?.create({page:()=>location.href.split("#")[0]});
+  function updateHistoryControls(){const position=history?.position()||{index:-1,count:0};el("history-previous").disabled=position.index<=0;el("history-next").disabled=position.index<0||position.index>=position.count-1;el("history-position").textContent=`${position.index+1} / ${position.count}`;}
+  function moveHistory(direction){
+    const entry=history?.move(direction);if(!entry){updateHistoryControls();return;}
+    hide();if(plainUtterance){plainUtterance=null;speechSynthesis.cancel();}
+    paperSelection=entry.paperSelection;paperSourceUrl=entry.sourceUrl;selectedText=entry.text;contextSelection=entry.text;selectedAction=entry.action;selectedProvider=entry.provider;
+    let range=entry.range;
+    try{if(!range?.startContainer?.isConnected||!range.endContainer?.isConnected||String(range).trim()!==entry.text)range=entry.anchor&&globalThis.WordNotesAnchor?.resolve(document,entry.anchor);if(range?.commonAncestorContainer?.ownerDocument!==document)range=null;}catch{range=null;}
+    const selection=window.getSelection();selection?.removeAllRanges();
+    if(range){selection.addRange(range.cloneRange());entry.range=range.cloneRange();const rect=range.getBoundingClientRect();if(rect.top<0||rect.bottom>innerHeight)(range.startContainer.nodeType===1?range.startContainer:range.startContainer.parentElement)?.scrollIntoView?.({block:"center",behavior:"instant"});}
+    highlightRange=range||null;el("equation-note").textContent="";el("history-note").textContent=range?"":"The original passage is no longer available here. Saved answers are still shown.";el("history-note").hidden=!!range;
+    paintSelection(entry.embedded,entry);
+  }
+  el("history-previous").addEventListener("click",()=>moveHistory(-1));el("history-next").addEventListener("click",()=>moveHistory(1));
+
   if(pronunciationAndTranslationOnly){el("selection-references").hidden=true;el("paper-explanation").hidden=true;el("cross-context").hidden=true;el("ask-llm").hidden=true;el("summarize").hidden=true;el("actions").className="actions limited";}
   function updateHighlightColor(){
     const active=highlighter?.activeColor(highlightRange);
@@ -178,6 +195,7 @@ ${globalThis.WordRichResponse?.css||""}
     host.style.left="auto";host.style.right="12px";host.style.top="12px";
   }
   function showSelection(embedded=null){
+    if(answerPage!==location.href.split("#")[0]){answers.clear();answerPage=location.href.split("#")[0];}
     selectionLauncher?.hide();
     if(document.activeElement!==host)returnFocus=document.activeElement;
     hide();highlightRange=null;el("equation-note").textContent="";
@@ -189,37 +207,33 @@ ${globalThis.WordRichResponse?.css||""}
     contextSelection=paperSelection.trim();
     selectedText=contextSelection;
     if(!selectedText||(!embedded&&!selection.rangeCount))return false;
-    let rect;
-    if(embedded){
-      const source=new URL(embedded.sourceUrl);
-      const frame=[...document.querySelectorAll('iframe')].find(node=>{try{const url=new URL(node.src,location.href);return url.origin===source.origin&&url.pathname===source.pathname;}catch{return false;}});
-      const outer=frame?.getBoundingClientRect()||{left:20,top:80};
-      rect={left:outer.left+embedded.rect.left,top:outer.top+embedded.rect.top,bottom:outer.top+embedded.rect.bottom};
-    }else{
-      const range=selection.getRangeAt(0),node=range.commonAncestorContainer;
-      const container=node?.nodeType===1?node:node?.parentElement;
-      if(container?.isContentEditable||container?.closest?.("input, textarea"))return false;
-      highlightRange=range.cloneRange?.()||null;
-      rect=range.getBoundingClientRect();
-    }
+    if(!embedded){const range=selection.getRangeAt(0),node=range.commonAncestorContainer,container=node?.nodeType===1?node:node?.parentElement;if(container?.isContentEditable||container?.closest?.("input, textarea"))return false;highlightRange=range.cloneRange?.()||null;}
+    let anchor=null;try{anchor=globalThis.WordNotesAnchor?.capture(document,highlightRange)||null;}catch{}
+    const entry=history?.remember({text:selectedText,paperSelection,sourceUrl:paperSourceUrl,range:highlightRange?.cloneRange?.()||null,anchor,embedded:!!embedded,action:selectedAction,provider:selectedProvider});
+    if(entry&&!entry.results.size)for(const [key,result]of answers)if(key.endsWith(`|${selectedText}`))history.update(entry.id,result);
+    el("history-note").hidden=true;return paintSelection(!!embedded,entry);
+  }
+  function paintSelection(embedded=false,entry=null){
     const canHighlight=!!highlighter?.canHighlight(highlightRange);
     for(const button of el("highlight-colors").children||[])button.disabled=!canHighlight;
     el("remove-highlight").disabled=!canHighlight;updateHighlightColor();
     el("highlight-note").textContent=!highlighter?.supported?"Text highlighting is unavailable in this browser.":embedded?"Highlighting is unavailable for this embedded selection.":canHighlight?(highlighter.status?.()||"Highlighting is available until reload."):"Select non-editable webpage text to highlight.";
     el("word").textContent=selectedText;
     el("result").hidden=true;el("references-result").hidden=true;el("summary-result").hidden=true;el("translation-result").hidden=true;spokenTranslation=null;
-    const saved=[...answers.entries()].filter(([key])=>key.endsWith(`|${selectedText}`)).map(([,value])=>value);
+    const saved=entry?.results.size?[...entry.results.values()]:[...answers.entries()].filter(([key])=>key.endsWith(`|${selectedText}`)).map(([,value])=>value);
     for(const result of saved)if((result.action!=="translate"||result.targetLanguage===settings.translationLanguage)&&(result.action!=="paper-explanation"||result.paperSourceUrl===paperSourceUrl))renderResult(result);
-    const running=[...pending.entries()].find(([,job])=>job.text===selectedText);
+    const running=[...pending.entries()].find(([,job])=>entry?job.historyId===entry.id:job.text===selectedText);
     activeRequest=running?.[0]||null;
     setBusy(!!running);applyReadingMode();
 
-    if(running){const view=resultView(running[1].action);view.section.hidden=false;view.section.className="result loading";view.status.textContent=running[1].stage||"Waiting for the answer…";}
+    if(running){const view=resultView(running[1].action);view.section.hidden=false;view.section.className="result loading";view.status.textContent=running[1].stage||"Waiting for the answer…";if(running[1].partialText&&running[1].action!=="selection-references"){if(globalThis.WordRichResponse)WordRichResponse.render(view.answer,running[1].partialRich,running[1].partialText);else view.answer.textContent=running[1].partialText;}}
+    updateHistoryControls();
     expandSection(selectedAction);
     host.style.display="block";
     minimized=false;el("selection-card").hidden=false;el("restore-selection").hidden=true;
     fitPanel();
     root.querySelector?.(".card")?.focus?.({preventScroll:true});
+    if(entry?.results.size&&highlightRange){const active=resultView(selectedAction);if(!active.section.hidden)active.section.scrollIntoView?.({block:"nearest"});}
     return true;
   }
   function resultView(action){
@@ -255,11 +269,12 @@ ${globalThis.WordRichResponse?.css||""}
     result={...result,paperSourceUrl:job.paperSourceUrl,action:job.action,provider:job.provider,targetLanguage:job.targetLanguage,label:job.action==="selection-references"?"Selection references · ChatGPT":job.action==="translate"?`Google Translate · ${job.targetLanguage}`:job.action==="summarize"?`Summary · ${job.provider==="gemini"?"Gemini":"ChatGPT"}`:`${job.provider==="gemini"?"Gemini":"ChatGPT"} · explanation`};
     if(result.ok&&["explain","translate","paper-explanation"].includes(job.action))globalThis.WordReviewPanel?.record({pageUrl:job.pageUrl,text:job.text,action:job.action,
       provider:job.provider,language:job.targetLanguage,answer:result.text});
-    answers.set(job.key,result);
+    history?.update(job.historyId,result);
+    if(job.pageUrl===location.href.split("#")[0])answers.set(job.key,result);
     if(answers.size>20)answers.delete(answers.keys().next().value);
     if(activeRequest===requestId){
       activeRequest=null;setBusy(false);
-      if(selectedText===job.text)renderResult(result);
+      if(selectedText===job.text&&(!history||history.current()?.id===job.historyId))renderResult(result);
     }
   }
   chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
@@ -284,6 +299,7 @@ ${globalThis.WordRichResponse?.css||""}
     const job=pending.get(message.requestId);
     if(!job)return;
     if(message.type==="EXPLANATION_PROGRESS"||message.type==="EXPLANATION_PARTIAL"){
+      if(typeof message.text==="string"){job.partialText=message.text;job.partialRich=message.rich;}
       job.stage=job.action==="summarize"?`Summary · ${message.stage||"Receiving…"}`:message.stage;
       if(message.requestId===activeRequest&&selectedText===job.text){
         const view=resultView(job.action);view.status.textContent=job.stage;
@@ -358,10 +374,11 @@ ${globalThis.WordRichResponse?.css||""}
     if(["summarize","selection-references"].includes(action)&&selectedText.length>8000){renderResult({action,ok:false,error:"Select up to 8,000 characters and try again."});expandSection(action);return;}
     selectedProvider=provider;
     selectedAction=action;
+    const historyEntry=history?.current();if(historyEntry){historyEntry.action=action;historyEntry.provider=provider;}
     if(action==="translate"){stopTranslationSpeech();spokenTranslation=null;el("listen-translation").hidden=true;el("speech-note").textContent="";}
     const requestId=crypto.randomUUID?.()||`${Date.now()}-${Math.random().toString(36).slice(2)}`;
     activeRequest=requestId;
-    const job={text:selectedText,action,provider,paperSourceUrl:action==="paper-explanation"?paperSourceUrl:undefined,pageUrl:typeof location!=="undefined"?location.href.split("#")[0]:"",targetLanguage:settings.translationLanguage,
+    const job={historyId:historyEntry?.id,text:selectedText,action,provider,paperSourceUrl:action==="paper-explanation"?paperSourceUrl:undefined,pageUrl:typeof location!=="undefined"?location.href.split("#")[0]:"",targetLanguage:settings.translationLanguage,
       key:answerKey(selectedText,action,settings.translationLanguage),
       stage:action==="translate"?`Translating into ${settings.translationLanguage} with Google…`:`${action==="summarize"?"Summary · ":""}Opening ${provider==="gemini"?"Gemini":"ChatGPT"}…`,timer:null};
     pending.set(requestId,job);

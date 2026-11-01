@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Word Explainer",
-  "version": "0.4.22",
+  "version": "0.4.23",
   "description": "Pronounce, translate, or ask ChatGPT or Gemini about selected text.",
   "permissions": [
     "storage",
@@ -37,6 +37,7 @@
         "page-references.js",
         "selection-references.js",
         "floating-tools.js",
+        "selection-history.js",
         "content.js"
       ],
       "exclude_matches": [
@@ -66,6 +67,7 @@
         "page-references.js",
         "selection-references.js",
         "floating-tools.js",
+        "selection-history.js",
         "content.js"
       ],
       "run_at": "document_idle"
@@ -99,6 +101,7 @@
         "selection-references.js",
         "floating-tools.js",
         "course-selection.js",
+        "selection-history.js",
         "content.js"
       ],
       "all_frames": true,
@@ -124,6 +127,7 @@
         "selection-references.js",
         "floating-tools.js",
         "course-selection.js",
+        "selection-history.js",
         "content.js"
       ],
       "all_frames": true,

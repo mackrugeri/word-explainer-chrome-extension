@@ -43,6 +43,7 @@ let preference={theme:'light'};const browser=await chromium.launch({channel:'chr
 
  const beforeHover=await panel.evaluate(()=>sent.length);
  for(const [id,label] of [['equation-speak','Greek alphabet pronunciation'],['paper-explanation','Explain mathematical equation from this paper'],['selection-references','Selection references'],['cross-context','Cross-page context'],['notes-taken','Notes Taken']]){
+  await panel.evaluate(id=>root.getElementById(id).scrollIntoView({block:'nearest'}),id);await panel.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
   const point=await panel.evaluate(id=>{const r=root.getElementById(id).getBoundingClientRect();return{x:r.left+r.width/2,y:r.top+r.height/2};},id);await panel.mouse.move(point.x,point.y);
   await panel.waitForFunction(label=>{const tip=root.getElementById('selection-tooltip');return !tip.hidden&&tip.textContent===label;},label);
   const tip=await panel.evaluate(()=>{const t=root.getElementById('selection-tooltip'),r=t.getBoundingClientRect();return{left:r.left,right:r.right,top:r.top,bottom:r.bottom,role:t.getAttribute('role')};});assert.ok(tip.left>=0&&tip.right<=320&&tip.top>=0&&tip.bottom<=640);assert.equal(tip.role,'tooltip');
