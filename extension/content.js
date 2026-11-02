@@ -1,5 +1,5 @@
 (() => {
-  const BUILD="0.4.24";
+  const BUILD="0.4.27";
   const pronunciationAndTranslationOnly=typeof location!=="undefined"&&location.hostname==="chatgpt.com";
   let contextSelection="", highlightRange=null, selectionLauncher=null;
   const highlighter=globalThis.WordHighlighter?.createPersistent();
@@ -26,10 +26,14 @@ button{font:inherit;cursor:pointer;transition:background-color .12s,border-color
 .selection-tooltip{position:fixed;z-index:4;max-width:min(260px,calc(100vw - 16px));padding:8px 11px;border:1px solid #435c4d;border-radius:7px;background:#233c2e;color:#fff;box-shadow:0 4px 14px #15271b30;font:12px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;text-align:left;white-space:normal;overflow-wrap:anywhere;pointer-events:none}:host([data-we-theme="dark"]) .selection-tooltip{background:#e4efe5;color:#1b3022;border-color:#b7cabc}
 .result{padding:0;margin-top:16px;border-color:#b6cfbf;border-left:3px solid #3a7456;border-radius:10px;background:var(--we-bg);box-shadow:0 2px 8px #245d470c}.result summary.status{padding:11px 12px;margin:0;background:#edf5ef;color:#28523b;font-size:12px;font-weight:650;gap:8px;line-height:1.5}.result summary.status>span:not(.dot){flex:1;min-width:0;overflow-wrap:anywhere}.result summary.status:after{content:"+";flex:none;font-size:17px;font-weight:500}.result[open] summary.status{margin:0;border-bottom:1px solid #d3e3d7}.result[open] summary.status:after{content:"−"}.result .dot{background:#3a7456;width:6px;height:6px}.result .result-body{padding:13px 12px}.result.error{border-color:#d9b7b0;border-left-color:var(--we-error)}.result.error summary.status{background:#fff0ed;color:#923b31}.result.error .dot{background:var(--we-error)}.actions #llm-choices{background:#edf5ef;border-color:#b6cfbf;border-left:3px solid #3a7456;color:#28523b;box-shadow:0 2px 8px #245d470c}.actions #provider-label{font-size:12px;font-weight:650}:host([data-we-theme="dark"]) .result{border-color:#4d6b56;border-left-color:#a8d0b4}:host([data-we-theme="dark"]) .result summary.status,:host([data-we-theme="dark"]) .actions #llm-choices{background:#293f30;color:#e0f0e4;border-color:#4d6b56}:host([data-we-theme="dark"]) .result[open] summary.status{border-bottom-color:#4d6b56}:host([data-we-theme="dark"]) .result .dot{background:#a8d0b4}:host([data-we-theme="dark"]) .result.error summary.status{background:#4c302c;color:#ffc9be}
  .history-nav{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:7px 14px;border-bottom:1px solid var(--we-line);background:var(--we-soft);flex:none}.history-nav button{display:grid;place-items:center;width:32px;height:28px;border:1px solid var(--we-line);border-radius:6px;background:var(--we-bg);color:var(--we-accent);font-size:18px}.history-nav button:disabled{cursor:default;opacity:.35}.history-nav button:not(:disabled):hover{border-color:var(--we-accent)}#history-position{color:var(--we-muted);font-size:11px;font-variant-numeric:tabular-nums}.history-note{margin:8px 16px;font-size:11px;color:var(--we-muted)}
+ .result-body{display:block;min-height:0;max-height:min(340px,44dvh);overflow:auto;overscroll-behavior-y:auto;scrollbar-gutter:stable;scrollbar-width:auto;scrollbar-color:#8da998 var(--we-soft);touch-action:pan-x pan-y}.result-body::-webkit-scrollbar{width:9px;height:9px}.result-body::-webkit-scrollbar-thumb{background:#8da998;border:2px solid var(--we-bg);border-radius:8px}.result-body::-webkit-scrollbar-track{background:var(--we-soft)}
+ .highlights{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:5px 7px;margin:0 14px;padding:10px 0 8px;border:0;border-bottom:1px solid var(--we-line);border-radius:0;background:var(--we-bg)}.highlight-header{display:contents}.highlight-header>span{grid-column:1;grid-row:1;font-size:10px;font-weight:600;color:var(--we-muted)}.highlight-remove{grid-column:3;grid-row:1;font-size:10px;padding:4px 0}.highlight-colors{grid-column:2;grid-row:1;margin:0;gap:4px}.highlight-color{height:22px;border-radius:4px;font-size:12px}.highlight-note{grid-column:1/-1;grid-row:2;margin:0;font-size:10px;line-height:1.4}.history-nav{margin-top:0}@media(max-width:340px){.highlights{grid-template-columns:1fr auto;gap:5px 7px}.highlight-header>span{grid-column:1}.highlight-remove{grid-column:2}.highlight-colors{grid-column:1/-1;grid-row:2;gap:5px}.highlight-note{grid-row:3}.highlight-color{height:22px}}@media(pointer:coarse){.highlight-color{height:28px}}
+ .highlights{display:block;margin:10px 14px 8px;padding:10px 12px;background:var(--we-soft);border:1px solid var(--we-line);border-radius:10px}.highlight-header{display:flex;align-items:center;justify-content:space-between;gap:10px}.highlight-header>span{font-size:11px;font-weight:650;color:var(--we-text)}.highlight-remove{display:inline-flex;align-items:center;justify-content:center;min-height:24px;padding:3px 8px;border:1px solid var(--we-line);border-radius:6px;background:var(--we-bg);color:var(--we-muted);font-size:10px;font-weight:550;line-height:1.4}.highlight-remove:hover{border-color:var(--we-accent);color:var(--we-accent);text-decoration:none}.highlight-colors{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:6px;margin-top:9px}.highlight-color{width:100%;height:auto;aspect-ratio:1;border-radius:50%;border:2px solid var(--we-bg);box-shadow:0 0 0 1px #15271b12;font-size:12px;transition:transform .12s,box-shadow .12s}.highlight-color:hover{transform:translateY(-1px);outline-offset:1px}.highlight-color[aria-pressed="true"]{outline:2px solid var(--we-accent);outline-offset:1px}.highlight-note{margin-top:7px;font-size:10px;line-height:1.45}.highlight-note:empty{display:none}@media(max-width:340px){.highlight-colors{gap:4px}}@media(pointer:coarse){.highlight-colors{grid-template-columns:repeat(5,minmax(0,1fr))}.highlight-color{width:32px;height:32px;justify-self:center}.highlight-remove{min-height:32px}}@media(prefers-reduced-motion:reduce){.highlight-color{transition:none}}
 ${globalThis.WordRichResponse?.css||""}
     </style>
     <section class="card" id="selection-card" tabindex="-1" aria-label="Word Explainer">
       <div class="header" id="drag-handle" title="Selection tools"><span class="mark" aria-hidden="true">W</span><div class="brand-stack"><span class="brand">Word Explainer</span><span class="tagline">Selection tools</span></div><button class="settings" id="open-settings" type="button" aria-label="Settings" title="Settings">⚙</button><button class="close" id="minimize-selection" type="button" aria-label="Minimize selection tools" title="Minimize to edge">›</button><button class="close" id="close" type="button" aria-label="Close">×</button></div>
+      <div class="highlights" role="group" aria-label="Highlight selected text"><div class="highlight-header"><span>Highlight</span><button class="highlight-remove" id="remove-highlight" type="button" aria-label="Remove highlights from selected text" title="Remove highlights from selected text">Clear</button></div><div class="highlight-colors" id="highlight-colors"></div><div class="highlight-note" id="highlight-note" role="status" aria-live="polite"></div></div>
       <nav class="history-nav" aria-label="Selection history"><button id="history-previous" type="button" aria-label="Previous selection" title="Previous selection" disabled>←</button><span id="history-position" role="status" aria-live="polite">0 / 0</span><button id="history-next" type="button" aria-label="Next selection" title="Next selection" disabled>→</button></nav>
       <div class="selection-content">
       <div class="reading-modes" role="group" aria-label="Reading mode"><button id="reading-mode" type="button" aria-pressed="true">Reading</button><button id="math-mode" type="button" aria-pressed="false">Math article</button></div>
@@ -44,14 +48,13 @@ ${globalThis.WordRichResponse?.css||""}
       <details class="result" id="summary-result" hidden open><summary class="status"><span class="dot" aria-hidden="true"></span><span id="summary-status">Summary</span></summary><div class="result-body" tabindex="0" aria-label="Summary"><div class="answer" id="summary-answer" dir="auto"></div></div></details>
       <details class="result" id="translation-result" hidden open><summary class="status"><span class="dot" aria-hidden="true"></span><span id="translation-status">Translation</span></summary><div class="result-body" tabindex="0" aria-label="Translation"><button class="speaker" id="listen-translation" type="button" aria-label="Listen to translation" title="Listen to translation" hidden>🔊</button><div class="answer translation" id="translation-answer" dir="auto"></div><div class="speech-note" id="speech-note" role="status"></div></div></details>
       </div>
-      <div class="highlights" role="group" aria-label="Highlight selected text"><div class="highlight-header"><span>Highlight</span><button class="highlight-remove" id="remove-highlight" type="button" title="Remove highlights overlapping the selected text">Remove</button></div><div class="highlight-colors" id="highlight-colors"></div><div class="highlight-note" id="highlight-note" role="status" aria-live="polite">Saved locally on this page</div></div>
-      <div class="footer"><span>Esc to minimize</span><span class="version">v0.4.24</span></div>
+      <div class="footer"><span>Esc to minimize</span><span class="version">v0.4.27</span></div>
     </section><button class="restore-selection" id="restore-selection" type="button" aria-label="Restore selection tools" title="Restore selection tools" aria-controls="selection-card" aria-expanded="false" hidden>‹</button><div class="selection-tooltip" id="selection-tooltip" role="tooltip" hidden></div>`;
   globalThis.WordUIIcons?.decorate(root);
   document.documentElement.appendChild(host);
   const tooltip=root.getElementById("selection-tooltip");let tooltipButton=null;
   tooltip.hidden=true;
-  for(const button of root.querySelectorAll?.("#equation-speak,#paper-explanation,#selection-references,#cross-context,#notes-taken")||[]){button.dataset.tooltip=button.title;button.removeAttribute("title");}
+  for(const button of root.querySelectorAll?.("#equation-speak,#paper-explanation,#selection-references,#cross-context,#notes-taken,#remove-highlight")||[]){button.dataset.tooltip=button.title;button.removeAttribute("title");}
   function hideTooltip(){
     tooltip.hidden=true;
     if(tooltipButton){const ids=(tooltipButton.getAttribute("aria-describedby")||"").split(/\s+/).filter(id=>id&&id!=="selection-tooltip");if(ids.length)tooltipButton.setAttribute("aria-describedby",ids.join(" "));else tooltipButton.removeAttribute("aria-describedby");}
@@ -123,6 +126,7 @@ ${globalThis.WordRichResponse?.css||""}
   el("history-previous").addEventListener("click",()=>moveHistory(-1));el("history-next").addEventListener("click",()=>moveHistory(1));
 
   if(pronunciationAndTranslationOnly){el("selection-references").hidden=true;el("paper-explanation").hidden=true;el("cross-context").hidden=true;el("ask-llm").hidden=true;el("summarize").hidden=true;el("actions").className="actions limited";}
+  function highlightStatus(){const message=highlighter?.status?.()||"";return message==="Saved locally"?"":message;}
   function updateHighlightColor(){
     const active=highlighter?.activeColor(highlightRange);
     for(const button of el("highlight-colors").children||[]){
@@ -136,7 +140,7 @@ ${globalThis.WordRichResponse?.css||""}
     button.addEventListener("click",async()=>{
       try{
         const ok=await highlighter.apply(highlightRange,key);updateHighlightColor();
-        el("highlight-note").textContent=ok?(highlighter.persistent?`${label} highlight saved locally.`:`${label} highlighted until reload. Refresh the extension to enable saving.`):"Select webpage text again to highlight it.";
+        el("highlight-note").textContent=ok?(highlighter.persistent?`${label} highlight saved.`:`${label} highlighted until reload. Refresh the extension to enable saving.`):"Select webpage text again to highlight it.";
       }catch(error){el("highlight-note").textContent=error.message||"Could not save the highlight. Try again.";}
       fitPanel();
     });
@@ -144,7 +148,7 @@ ${globalThis.WordRichResponse?.css||""}
   }
   highlighter?.ready?.then(()=>{
     updateHighlightColor();
-    if(host.style.display==="block")el("highlight-note").textContent=highlighter.status();
+    if(host.style.display==="block")el("highlight-note").textContent=highlightStatus();
   }).catch(()=>{el("highlight-note").textContent="Could not load saved highlights. Refresh this page to retry.";});
   el("notes-taken").addEventListener("click",()=>{
     if(globalThis.WordNotesPanel?.open(highlightRange))hide();
@@ -153,7 +157,7 @@ ${globalThis.WordRichResponse?.css||""}
   el("remove-highlight").addEventListener("click",async()=>{
     try{
       const ok=await highlighter?.remove(highlightRange);updateHighlightColor();
-      el("highlight-note").textContent=ok?"Overlapping highlights removed from saved highlights.":"Select webpage text again to remove highlights.";
+      el("highlight-note").textContent=ok?"Highlight removed.":"Select webpage text again to remove highlights.";
     }catch(error){el("highlight-note").textContent=error.message||"Could not remove saved highlights. Try again.";}
   });
   function applyReadingMode(){
@@ -230,7 +234,7 @@ ${globalThis.WordRichResponse?.css||""}
     const canHighlight=!!highlighter?.canHighlight(highlightRange);
     for(const button of el("highlight-colors").children||[])button.disabled=!canHighlight;
     el("remove-highlight").disabled=!canHighlight;updateHighlightColor();
-    el("highlight-note").textContent=!highlighter?.supported?"Text highlighting is unavailable in this browser.":embedded?"Highlighting is unavailable for this embedded selection.":canHighlight?(highlighter.status?.()||"Highlighting is available until reload."):"Select non-editable webpage text to highlight.";
+    el("highlight-note").textContent=!highlighter?.supported?"Text highlighting is unavailable in this browser.":embedded?"Highlighting is unavailable for this embedded selection.":canHighlight?(highlighter.persistent?highlightStatus():"Highlighting is available until reload."):"Select non-editable webpage text to highlight.";
     el("word").textContent=selectedText;
     el("result").hidden=true;el("references-result").hidden=true;el("summary-result").hidden=true;el("translation-result").hidden=true;spokenTranslation=null;
     const saved=entry?.results.size?[...entry.results.values()]:[...answers.entries()].filter(([key])=>key.endsWith(`|${selectedText}`)).map(([,value])=>value);
@@ -336,6 +340,27 @@ ${globalThis.WordRichResponse?.css||""}
   });
   window.addEventListener("resize",fitPanel);
   root.addEventListener("mousedown",event=>{if(event.target.closest?.("button"))event.preventDefault();});
+  // Do not let the host page's wheel handlers cancel native panel scrolling.
+  // If a capture handler already cancelled it, move only the panel's scrollable area.
+  root.addEventListener("wheel",event=>{
+    if(event.ctrlKey||event.metaKey)return;
+    event.stopPropagation();if(!event.defaultPrevented)return;
+    for(const node of event.composedPath()){
+      if(node?.nodeType!==1||!root.contains(node))continue;
+      const style=getComputedStyle(node),factor=event.deltaMode===1?(parseFloat(style.lineHeight)||16):event.deltaMode===2?Math.max(1,node.clientHeight):1;
+      let dx=event.deltaX*factor,dy=event.deltaY*factor;if(event.shiftKey&&!dx){dx=dy;dy=0;}
+      const y=/auto|scroll/.test(style.overflowY)&&node.scrollHeight>node.clientHeight+1&&(dy<0?node.scrollTop>0:dy>0&&node.scrollTop+node.clientHeight<node.scrollHeight-1);
+      const x=/auto|scroll/.test(style.overflowX)&&node.scrollWidth>node.clientWidth+1&&(dx<0?node.scrollLeft>0:dx>0&&node.scrollLeft+node.clientWidth<node.scrollWidth-1);
+      if(y||x){if(y)node.scrollTop+=dy;if(x)node.scrollLeft+=dx;return;}
+    }
+  },{passive:false});
+  root.addEventListener("keydown",event=>{
+    const area=event.target.closest?.(".result-body");if(!area||event.ctrlKey||event.metaKey||event.altKey||!["ArrowDown","ArrowUp","PageDown","PageUp","Home","End"].includes(event.key))return;
+    event.stopPropagation();if(!event.defaultPrevented)return;
+    const page=Math.max(40,area.clientHeight-30);if(event.key==="Home")area.scrollTop=0;else if(event.key==="End")area.scrollTop=area.scrollHeight;else area.scrollTop+=event.key==="ArrowDown"?40:event.key==="ArrowUp"?-40:event.key==="PageDown"?page:-page;
+  });
+  root.addEventListener("touchmove",event=>event.stopPropagation(),{passive:true});
+
   el("close").addEventListener("click",dismiss);
   el("open-settings").addEventListener("click",()=>send({type:"OPEN_SETTINGS"}).catch(()=>{}));
   el("listen-translation").addEventListener("click",()=>{
