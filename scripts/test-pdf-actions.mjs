@@ -6,7 +6,7 @@ const code=await fs.readFile(dir+'pdf-selection.js','utf8');
 new vm.Script(await fs.readFile(dir+'pdf-panel.js','utf8'));
 let clicked,installed,removed,updated;const store={},order=[],started=[],translated=[],warnings=[],captured=[];
 const chrome={runtime:{id:'test',getURL:path=>'chrome-extension://test/'+path,onInstalled:{addListener:f=>installed=f},onStartup:{addListener(){}},lastError:null},contextMenus:{remove(id,fn){fn()},create(properties,fn){assert.equal(properties.contexts[0],'selection');fn()},onClicked:{addListener:f=>clicked=f}},sidePanel:{open:async opts=>{order.push(['open',opts.tabId])}},storage:{session:{get:async key=>{order.push(['get',key]);return structuredClone(store)},set:async obj=>Object.assign(store,structuredClone(obj)),remove:async key=>delete store[key]}},tabs:{get:async id=>({id,url:'https://example.org/paper.pdf',title:'Paper'}),onRemoved:{addListener:f=>removed=f},onUpdated:{addListener:f=>updated=f}}};
-let serial=0;const ctx={chrome,URL,crypto:{randomUUID:()=>`selection-${++serial}`}};vm.runInNewContext(code,ctx);
+let serial=0;const ctx={chrome,URL,crypto:{randomUUID:()=>`selection-${++serial}`}};vm.runInNewContext(await fs.readFile(dir+'followup.js','utf8'),ctx);vm.runInNewContext(code,ctx);
 const make=()=>ctx.WordPDFSelection.create({chrome,translate:async(...args)=>{translated.push(args);return 'ترجمہ'},start:async(...args)=>{started.push(args)},feedback:(...args)=>warnings.push(args),capture:async record=>{captured.push(structuredClone(record));return {ok:true}}});
 let service=make();installed();
 const flush=async()=>{for(let i=0;i<20;i++)await new Promise(setImmediate)};
@@ -43,3 +43,10 @@ assert.equal(started.at(-1)[3],'chatgpt');assert.equal(started.at(-1)[4].task,'s
 console.log('PASS: native PDF menu selection, synchronous side-panel opening, no automatic external request, translation and Gemini result retention, worker restart, wrong-tab and stale-answer isolation, trusted panel boundary, selection limits, navigation and tab cleanup.');
 
 const storeCode=await fs.readFile(dir+'context-store.js','utf8');vm.runInNewContext(storeCode,ctx);assert.equal(ctx.WordContextStore.sourceUrl('file:///tmp/article.pdf'),'file:///tmp/article.pdf');assert.throws(()=>ctx.WordContextStore.sourceUrl('file:///tmp/private.txt'));assert.throws(()=>ctx.WordContextStore.sourceUrl('javascript:alert(1)'));
+
+await send({type:'PDF_PANEL_SET_SELECTION',tabId:5,text:'system'});record=(await send({type:'PDF_PANEL_GET',tabId:5})).record;
+await send({type:'PDF_PANEL_RUN',tabId:5,selectionId:record.id,action:'explain',provider:'gemini',language:'Urdu',requestId:'initial-thread-123'});await flush();await service.notify(5,{type:'EXPLANATION_RESULT',requestId:'initial-thread-123',ok:true,text:'A system connects parts.'});
+const followup={question:'Give an example',turns:[{text:'A system connects parts.'}]};assert.equal((await send({type:'PDF_PANEL_RUN',tabId:5,selectionId:record.id,action:'followup',provider:'chatgpt',language:'Urdu',requestId:'followup-thread-123',followup})).accepted,true);await flush();assert.equal(started.at(-1)[3],'gemini');assert.equal(started.at(-1)[4].task,'explain');assert.equal(started.at(-1)[4].followup.question,'Give an example');await service.notify(5,{type:'EXPLANATION_RESULT',requestId:'followup-thread-123',ok:true,text:'An operating system.'});
+record=(await send({type:'PDF_PANEL_GET',tabId:5})).record;assert.equal(record.conversation.length,2);assert.equal(record.results.explain.text,'A system connects parts.');assert.equal(record.conversation[1].text,'An operating system.');
+await send({type:'PDF_PANEL_SET_SELECTION',tabId:5,text:'another selection'});assert.equal(await service.notify(5,{type:'EXPLANATION_RESULT',requestId:'followup-thread-123',ok:true,text:'Stale answer'}),false);
+console.log('PASS: PDF follow-up context, original-provider enforcement, retained initial answer and thread, Ask cleanup task and changed-selection isolation.');

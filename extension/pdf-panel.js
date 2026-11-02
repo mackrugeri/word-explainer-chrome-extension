@@ -8,9 +8,10 @@
     const math=settings.readingMode==="math";el("reading-mode").setAttribute("aria-pressed",String(!math));el("math-mode").setAttribute("aria-pressed",String(math));el("equation").hidden=!math;el("paper-explanation").hidden=!math;
   }
   for(const [id,mode]of [["reading-mode","reading"],["math-mode","math"]])el(id).addEventListener("click",async()=>{settings.readingMode=mode;render();try{await chrome.storage.local.set({readingMode:mode});}catch{el("notice").textContent="Mode changed; could not save this preference.";}});
+  const followupUI=globalThis.WordFollowup?.create({mount:el('explanation-section'),request:payload=>chrome.runtime.sendMessage({type:'PDF_PANEL_RUN',tabId,selectionId:record.id,action:'followup',language:settings.translationLanguage,...payload})});
   function render() {
     applyReadingMode();
-    el("empty").hidden=!!record;el("workspace").hidden=!record;if(!record)return;
+    el("empty").hidden=!!record;el("workspace").hidden=!record;if(!record){followupUI?.hide();return;}
     el("selection").textContent=record.text;
     try{el("source").textContent=new URL(record.url).hostname||"Local PDF";}catch{el("source").textContent="PDF selection";}
     for(const [action,prefix] of [["translate","translation"],["explain","explanation"],["paper-explanation","paper"],["summarize","summary"],["selection-references","references"]]){
@@ -22,8 +23,12 @@
       if(result&&latest===action)section.open=true;
       else if(latest)section.open=false;
     }
+    const explanation=record.results.explain;
+    if(explanation?.ok)followupUI?.show({key:`${record.id}|${explanation.requestId}`,selection:record.text,result:{...explanation,conversation:record.conversation}});else followupUI?.hide();
+    if(record.results.followup)followupUI?.receive(record.results.followup);
     el("translate").disabled=!!record.results.translate&&record.results.translate.type!=="EXPLANATION_RESULT";
-    const aiBusy=[record.results.explain,record.results["paper-explanation"],record.results.summarize,record.results["selection-references"]].some(result=>result&&result.type!=="EXPLANATION_RESULT");
+    const aiBusy=[record.results.followup,record.results.explain,record.results["paper-explanation"],record.results.summarize,record.results["selection-references"]].some(result=>result&&result.type!=="EXPLANATION_RESULT");
+    followupUI?.busy(aiBusy);
     for(const id of ["ask","chatgpt","gemini","paper-explanation","summarize","selection-references"])el(id).disabled=aiBusy;
     if(globalThis.WordMathSelection&&!WordMathSelection.isMath(record.text))el("paper-explanation").disabled=true;
     el("translation-answer").style.fontSize=`${Math.min(32,Math.max(14,Number(settings.translationFontSize)||20))}px`;
@@ -38,7 +43,7 @@
       if(ticket!==epoch)return;
       if(!result?.ok)throw new Error(result?.error||"Could not load the PDF selection.");
       if(id!==tabId||record?.id!==result.record?.id){speechSynthesis.cancel();latest=null;el("notice").textContent="";el("providers").hidden=true;el("ask").setAttribute("aria-expanded","false");}
-      tabId=id;record=result.record;render();
+      tabId=id;record=result.record;if(!latest&&record?.conversation?.length>1)latest="explain";render();
     }catch(error){if(ticket===epoch)el("notice").textContent=error.message;}
   }
   async function run(action,provider="chatgpt") {

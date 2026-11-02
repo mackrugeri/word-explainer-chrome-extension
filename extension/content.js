@@ -1,5 +1,5 @@
 (() => {
-  const BUILD="0.4.30";
+  const BUILD="0.4.31";
   const pronunciationAndTranslationOnly=typeof location!=="undefined"&&location.hostname==="chatgpt.com";
   let contextSelection="", highlightRange=null, selectionLauncher=null;
   const highlighter=globalThis.WordHighlighter?.createPersistent();
@@ -48,7 +48,7 @@ ${globalThis.WordRichResponse?.css||""}
       <details class="result" id="summary-result" hidden open><summary class="status"><span class="dot" aria-hidden="true"></span><span id="summary-status">Summary</span></summary><div class="result-body" tabindex="0" aria-label="Summary"><div class="answer" id="summary-answer" dir="auto"></div></div></details>
       <details class="result" id="translation-result" hidden open><summary class="status"><span class="dot" aria-hidden="true"></span><span id="translation-status">Translation</span></summary><div class="result-body" tabindex="0" aria-label="Translation"><button class="speaker" id="listen-translation" type="button" aria-label="Listen to translation" title="Listen to translation" hidden>🔊</button><div class="answer translation" id="translation-answer" dir="auto"></div><div class="speech-note" id="speech-note" role="status"></div></div></details>
       </div>
-      <div class="footer"><span>Esc to minimize</span><span class="version">v0.4.30</span></div>
+      <div class="footer"><span>Esc to minimize</span><span class="version">v0.4.31</span></div>
     </section><button class="restore-selection" id="restore-selection" type="button" aria-label="Restore selection tools" title="Restore selection tools" aria-controls="selection-card" aria-expanded="false" hidden>‹</button><div class="selection-tooltip" id="selection-tooltip" role="tooltip" hidden></div>`;
   globalThis.WordUIIcons?.decorate(root);
   document.documentElement.appendChild(host);
@@ -85,7 +85,8 @@ ${globalThis.WordRichResponse?.css||""}
   let paperSelection="",paperSourceUrl="";
   let selectedText="", activeRequest=null, selectedAction="explain", selectedProvider="chatgpt";
   const answerKey=(text,action,language,provider=selectedProvider)=>`${action}|${action==="paper-explanation"?paperSourceUrl+"|":""}${action==="translate"?language:provider}|${text}`;
-  const setBusy=value=>{el("selection-references").disabled=value;el("paper-explanation").disabled=value;el("summarize").disabled=value;el("ask-llm").disabled=value;el("explain").disabled=value;el("gemini").disabled=value;el("translate").disabled=value;};
+  let followupUI=null;
+  const setBusy=value=>{followupUI?.busy(value);el("selection-references").disabled=value;el("paper-explanation").disabled=value;el("summarize").disabled=value;el("ask-llm").disabled=value;el("explain").disabled=value;el("gemini").disabled=value;el("translate").disabled=value;};
   async function send(message){
     try {
       if(!chrome.runtime?.id)throw new Error("Extension context invalidated");
@@ -119,7 +120,7 @@ ${globalThis.WordRichResponse?.css||""}
   }
   function clearSelectionHistory(scope={}){
     try{if(scope.site&&new URL(location.href).origin!==scope.site)return;if(scope.url&&new URL(scope.url).href.split("#")[0]!==location.href.split("#")[0])return;}catch{return;}
-    for(const [requestId,job]of pending){clearTimeout(job.timer);send({type:"CANCEL_EXPLANATION",requestId}).catch(()=>{});}pending.clear();activeRequest=null;answers.clear();if(scope.kind==="page"&&scope.url)history?.removePage(scope.url);else history?.clear();
+    for(const [requestId,job]of pending){clearTimeout(job.timer);send({type:"CANCEL_EXPLANATION",requestId}).catch(()=>{});}pending.clear();followupUI?.clear();activeRequest=null;answers.clear();if(scope.kind==="page"&&scope.url)history?.removePage(scope.url);else history?.clear();
     selectedText="";contextSelection="";paperSelection="";paperSourceUrl="";highlightRange=null;spokenTranslation=null;
     if(plainUtterance){plainUtterance=null;speechSynthesis.cancel();}hide();updateHistoryControls();setBusy(false);
     for(const id of ["result","references-result","summary-result","translation-result"])el(id).hidden=true;
@@ -233,6 +234,7 @@ ${globalThis.WordRichResponse?.css||""}
     el("history-note").hidden=true;return paintSelection(!!embedded,entry);
   }
   function paintSelection(embedded=false,entry=null){
+    followupUI?.hide();
     const canHighlight=!!highlighter?.canHighlight(highlightRange);
     for(const button of el("highlight-colors").children||[])button.disabled=!canHighlight;
     el("remove-highlight").disabled=!canHighlight;updateHighlightColor();
@@ -266,6 +268,8 @@ ${globalThis.WordRichResponse?.css||""}
     el("summary-result").open=action==="summarize";el("result").open=action==="explain"||action==="paper-explanation";el("translation-result").open=action==="translate";
   }
   function renderResult(result){
+    if(result.action==='explain'&&result.ok){const entry=history?.current(),key=answerKey(selectedText,'explain',settings.translationLanguage,result.provider);followupUI?.show({key:`${entry?.id||selectedText}|${result.provider}|${result.requestId||result.text}`,selection:selectedText,result,save:conversation=>{const updated={...result,conversation};history?.update(entry?.id,updated);answers.set(key,updated);}});}else if(result.action!=='translate'&&result.action!=='summarize'&&result.action!=='selection-references')followupUI?.hide();
+
     const view=resultView(result.action);
     view.section.hidden=false;view.section.className=result.ok?"result":"result error";
     view.status.textContent=result.ok?result.label:`${result.action==="translate"?"Translation":result.action==="summarize"?"Summary":result.action==="selection-references"?"Selection references":"AI explanation"} · Unable to finish`;
@@ -358,6 +362,7 @@ ${globalThis.WordRichResponse?.css||""}
   },{passive:false});
   root.addEventListener("keydown",event=>{
     const area=event.target.closest?.(".result-body");if(!area||event.ctrlKey||event.metaKey||event.altKey||!["ArrowDown","ArrowUp","PageDown","PageUp","Home","End"].includes(event.key))return;
+    if(event.target.closest?.("textarea,input"))return;
     event.stopPropagation();if(!event.defaultPrevented)return;
     const page=Math.max(40,area.clientHeight-30);if(event.key==="Home")area.scrollTop=0;else if(event.key==="End")area.scrollTop=area.scrollHeight;else area.scrollTop+=event.key==="ArrowDown"?40:event.key==="ArrowUp"?-40:event.key==="PageDown"?page:-page;
   });
@@ -412,6 +417,7 @@ ${globalThis.WordRichResponse?.css||""}
     if(action==="paper-explanation"&&globalThis.WordMathSelection&&!WordMathSelection.isMath(paperSelection||selectedText)){el("math-mode-note").hidden=false;el("math-mode-note").textContent="Select a mathematical equation first.";fitPanel();return;}
     el("llm-choices").hidden=true;el("ask-llm").setAttribute("aria-expanded","false");
     if(["summarize","selection-references"].includes(action)&&selectedText.length>8000){renderResult({action,ok:false,error:"Select up to 8,000 characters and try again."});expandSection(action);return;}
+    if(action==="explain"||action==="paper-explanation")followupUI?.hide();
     selectedProvider=provider;
     selectedAction=action;
     const historyEntry=history?.current();if(historyEntry){historyEntry.action=action;historyEntry.provider=provider;}
@@ -454,6 +460,7 @@ ${globalThis.WordRichResponse?.css||""}
   el("gemini").addEventListener("click",()=>requestAction("explain","gemini"));
   el("translate").addEventListener("click",()=>requestAction("translate"));
   if(!pronunciationAndTranslationOnly&&window.top===window){globalThis.WordReviewPanel?.useDock?.();globalThis.WordFloatingTools?.create({openSelection:action=>{if(!showSelection())return false;if(action)el(action)?.click();return true;},mountReview:(container,onClose)=>globalThis.WordReviewPanel?.mount?.(container,onClose)||false});}
+  if(!pronunciationAndTranslationOnly)followupUI=globalThis.WordFollowup?.create({mount:el('answer').parentElement,request:({selection,...payload})=>send({type:'EXPLAIN_SELECTION',action:'explain',text:selection,build:BUILD,...payload})});
   const loadRevision=historyRevision;
   if(history)send({type:"LOAD_SELECTION_HISTORY"}).then(reply=>{
     if(historyRevision===loadRevision&&history?.restore(reply?.state)){updateHistoryControls();hide();}

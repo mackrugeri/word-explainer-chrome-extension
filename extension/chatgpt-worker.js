@@ -1,6 +1,6 @@
 // UI automation only; never reads account cookies or existing user conversations.
 (() => {
-  const BUILD = "0.4.30";
+  const BUILD = "0.4.31";
   let busy = false;
   let cleanupEligible = false;
   let ownedPrompt = "";
@@ -117,7 +117,7 @@
     }
     if (message.type === "CHATGPT_READY") { sendResponse({ ready: true, build: BUILD }); return; }
     if (message.type === "CHATGPT_START") {
-      if (busy || typeof message.prompt !== "string" || message.prompt.length > (message.task === "selection-references" ? 24000 : ["whole-page-summary","page-references","selection-references"].includes(message.task) ? 6000 : message.task === "paper-explanation" ? 80000 : message.task === "context-summary" ? 28000 : message.task === "paragraph-summary" ? 9000 : 2500)) {
+      if (busy || typeof message.prompt !== "string" || message.prompt.length > (message.task === "explain" ? 24000 : message.task === "selection-references" ? 24000 : ["whole-page-summary","page-references","selection-references"].includes(message.task) ? 6000 : message.task === "paper-explanation" ? 80000 : message.task === "context-summary" ? 28000 : message.task === "paragraph-summary" ? 9000 : 2500)) {
         sendResponse({ accepted: false, error: "ChatGPT is already handling a request or the prompt is invalid." }); return;
       }
       sendResponse({ accepted: true }); // Synchronous acknowledgement, not the answer.
