@@ -1,16 +1,18 @@
 // Page review storage is isolated from provider automation.
-if (typeof importScripts === "function") importScripts("notes-store.js", "review-store.js", "context-store.js", "context-controller.js", "pdf-selection.js", "paper-explanation.js", "paragraph-summary.js", "storage-manager.js", "rich-response.js", "page-summary.js", "page-references.js", "selection-references.js", "page-data.js", "selection-history-session.js");
+if (typeof importScripts === "function") importScripts("notes-store.js", "review-store.js", "context-store.js", "context-controller.js", "pdf-selection.js", "paper-explanation.js", "paragraph-summary.js", "storage-manager.js", "rich-response.js", "page-summary.js", "page-references.js", "selection-references.js", "page-data.js", "selection-history-session.js", "reading-progress.js");
 const selectionHistorySession=globalThis.WordSelectionHistorySession?.create(chrome);
+const readingStore=globalThis.WordReadingProgress?.createStore(chrome.storage.local);
+const readingService=readingStore&&WordReadingProgress.createService(chrome,readingStore);
 const notesStore = globalThis.WordNotesStore.create(chrome.storage.local);
 const reviewStore = globalThis.WordReviewStore.create(chrome.storage.local);
 const contextStore = globalThis.WordContextStore.create(chrome.storage.local);
 const contextController = globalThis.WordContextController.create({chrome,store:contextStore,startJob,readJob:()=>readJob()});
 const pageSummary=globalThis.WordPageSummary?.create({chrome,start:startJob,readJob:()=>readJob()});
 const pageReferences=globalThis.WordPageReferences?.create({chrome,start:startJob,readJob:()=>readJob()});
-const storageManager=globalThis.WordStorageManager?.create({storage:chrome.storage.local,reviewStore,notesStore,pageSummary,pageReferences});
-const pageData=globalThis.WordPageData?.create({chrome,notesStore,reviewStore,pageSummary,pageReferences,cancel:async(url,tabId)=>{const job=await readJob();if(job?.sourceTabId!==tabId||job.task==='context-summary')return;try{if(WordPageData.canonical(job.sourcePageUrl||job.sourceUrl)!==url)return;}catch{return;}await finishJob(job.tabId,{ok:false,error:'Page data cleared.'});}});
+const storageManager=globalThis.WordStorageManager?.create({storage:chrome.storage.local,reviewStore,notesStore,pageSummary,pageReferences,readingStore});
+const pageData=globalThis.WordPageData?.create({chrome,notesStore,reviewStore,pageSummary,pageReferences,readingStore,cancel:async(url,tabId)=>{const job=await readJob();if(job?.sourceTabId!==tabId||job.task==='context-summary')return;try{if(WordPageData.canonical(job.sourcePageUrl||job.sourceUrl)!==url)return;}catch{return;}await finishJob(job.tabId,{ok:false,error:'Page data cleared.'});}});
 // Short acknowledgements; progress and answers arrive as separate messages.
-const BUILD = "0.4.28";
+const BUILD = "0.4.29";
 const JOB_KEY = "activeExplanationJob";
 const TIMEOUT_ALARM = "word-explanation-timeout";
 let starting = false;
@@ -206,6 +208,7 @@ chrome.commands.onCommand.addListener(async (command, tab) => {
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (sender.id !== chrome.runtime.id || message.target === "translation-audio") return;
+  if(readingService?.handle(message,sender,sendResponse))return true;
   if(selectionHistorySession?.handle(message,sender,sendResponse))return true;
   if(message.type==="CLEAR_PAGE_DATA")return pageData?.handle(message,sender,sendResponse);
   if(message.type?.startsWith("PAGE_REFERENCES_"))return pageReferences?.handle(message,sender,sendResponse);

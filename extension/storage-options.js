@@ -1,6 +1,6 @@
 (() => {
   const el=id=>document.getElementById(id);
-  const labels={review:'Review summaries',notes:'Personal notes',highlights:'Text highlights',pageSummaries:'Page summaries',pageReferences:'Reference lists'};
+  const labels={review:'Review summaries',notes:'Personal notes',highlights:'Text highlights',pageSummaries:'Page summaries',pageReferences:'Reference lists',readingProgress:'Reading progress & stoppers'};
   let busy=false;
   const size=value=>value<1024?`${value} B`:value<1048576?`${(value/1024).toFixed(1)} KB`:`${(value/1048576).toFixed(2)} MB`;
   function node(tag,text,className){const item=document.createElement(tag);if(text!==undefined)item.textContent=text;if(className)item.className=className;return item;}

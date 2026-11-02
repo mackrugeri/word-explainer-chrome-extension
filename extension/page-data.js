@@ -2,11 +2,11 @@
 (() => {
  const SIGNAL='wordSelectionClearSignal';
  function canonical(value){const url=new URL(value);if(!['http:','https:'].includes(url.protocol)||url.username||url.password)throw Error('Open a webpage to clear its data.');url.hash='';return url.href;}
- function create({chrome,notesStore,reviewStore,pageSummary,pageReferences,cancel}){
+ function create({chrome,notesStore,reviewStore,pageSummary,pageReferences,readingStore,cancel}){
   async function clear(url,tabId){
    await cancel?.(url,tabId);
    await notesStore.clearPage(url);await reviewStore.clearPage(url);
-   await pageSummary?.clearPage(url);await pageReferences?.clearPage(url);
+   await pageSummary?.clearPage(url);await pageReferences?.clearPage(url);await readingStore?.clearPage(url);
    await chrome.storage.local.remove('wordHighlightsV1:'+url);
    const selections=await chrome.storage.session.get(null),keys=Object.keys(selections).filter(key=>{if(!key.startsWith('pdf-selection:'))return false;try{return canonical(selections[key]?.url)===url;}catch{return false;}});
    if(keys.length)await chrome.storage.session.remove(keys);
