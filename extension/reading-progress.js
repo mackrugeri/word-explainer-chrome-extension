@@ -21,8 +21,8 @@
      const p=message.position;if(!p||!Number.isFinite(p.y)||!Number.isFinite(p.ratio)||p.y<0||p.y>100000000||p.ratio<0||p.ratio>1)throw Error('Invalid reading position.');
      task=store.update(url,{position:{y:p.y,ratio:p.ratio},title:String(message.title||'').slice(0,180)});
     }else{
-     const s=message.stopper;if(s!==null&&(!s||!Number.isFinite(s.y)||s.y<0||s.y>100000000||!Number.isFinite(s.offset)||Math.abs(s.offset)>100000||s.anchor&&(!s.anchor.exact||s.anchor.exact.length>800||String(s.anchor.prefix||'').length>80||String(s.anchor.suffix||'').length>80)))throw Error('Invalid reading stopper.');
-     task=store.update(url,{stopper:s===null?null:{y:s.y,offset:s.offset,anchor:s.anchor?{exact:String(s.anchor.exact),prefix:String(s.anchor.prefix||''),suffix:String(s.anchor.suffix||'')}:null}});
+     const s=message.stopper;if(s!==null&&(!s||!Number.isFinite(s.y)||s.y<0||s.y>100000000||!Number.isFinite(s.offset)||Math.abs(s.offset)>100000||s.x!=null&&(!Number.isFinite(s.x)||s.x<0||s.x>1)||s.markerOffset!=null&&(!Number.isFinite(s.markerOffset)||s.markerOffset<0||s.markerOffset>80)||s.anchor&&(!s.anchor.exact||s.anchor.exact.length>800||String(s.anchor.prefix||'').length>80||String(s.anchor.suffix||'').length>80)))throw Error('Invalid reading stopper.');
+     task=store.update(url,{stopper:s===null?null:{y:s.y,offset:s.offset,x:s.x??null,markerOffset:s.markerOffset??80,anchor:s.anchor?{exact:String(s.anchor.exact),prefix:String(s.anchor.prefix||''),suffix:String(s.anchor.suffix||'')}:null}});
     }
    }catch(error){reply({ok:false,error:error.message});return true;}
    task.then(record=>reply({ok:true,record}),error=>reply({ok:false,error:error.message||'Could not save reading progress.'}));return true;
@@ -34,28 +34,28 @@
   const max=()=>Math.max(0,(document.scrollingElement?.scrollHeight||0)-innerHeight);
   const position=()=>{const y=Math.max(0,scrollY);return{y,ratio:max()?Math.min(1,y/max()):0};};
   async function send(type,extra={}){const result=await chrome.runtime.sendMessage({type,url,...extra});if(!result?.ok)throw Error(result?.error||'Reading progress is unavailable.');return result.record;}
-  function notify(){let markerY=record?.stopper?record.stopper.y-scrollY+80:null;if(record?.stopper&&range?.startContainer?.isConnected)markerY=range.getBoundingClientRect().top-record.stopper.offset+80;onChange({record,ready,markerY});}
+  function notify(){let markerY=record?.stopper?record.stopper.y-scrollY+(record.stopper.markerOffset??80):null;if(record?.stopper&&range?.startContainer?.isConnected)markerY=range.getBoundingClientRect().top-record.stopper.offset+(record.stopper.markerOffset??80);onChange({record,ready,markerY});}
   async function load(){const version=++revision;ready=false;record=null;range=null;paused=false;lastY=-1;try{const saved=await send('READING_GET');if(version!==revision)return;record=saved;try{range=saved?.stopper?.anchor&&globalThis.WordNotesAnchor?.resolve(document,saved.stopper.anchor);}catch{range=null;}ready=true;notify();}catch{if(version===revision){ready=true;notify();}}}
   async function save(){clearTimeout(timer);timer=null;if(!ready||paused)return;const p=position();if(Math.abs(p.y-lastY)<2)return;lastY=p.y;const version=revision;try{const saved=await send('READING_SAVE',{position:p,title:document.title});if(version===revision){record=saved;notify();}}catch{lastY=-1;}}
   function scroll(event){if(event?.target!==document&&event?.target!==window)return;paused=false;notify();if(!timer)timer=setTimeout(save,1000);}
-  function anchorHere(){
-   const selection=getSelection();let r=selection?.rangeCount&&!selection.isCollapsed?selection.getRangeAt(0).cloneRange():null;
-   if(!r||!document.body.contains(r.commonAncestorContainer)||String(r).length>800||r.getBoundingClientRect().bottom<0||r.getBoundingClientRect().top>innerHeight){r=null;for(const x of [innerWidth*.35,innerWidth*.5,innerWidth*.2]){const candidate=document.caretRangeFromPoint?.(x,Math.min(100,innerHeight/4));if(candidate?.startContainer.nodeType===3&&candidate.startContainer.data.trim()){r=candidate;const node=r.startContainer;r.setEnd(node,Math.min(node.length,r.startOffset+160));if(!r.collapsed)break;r=null;}}}
+  function anchorHere(point=null){
+   const selection=getSelection();let r=!point&&selection?.rangeCount&&!selection.isCollapsed?selection.getRangeAt(0).cloneRange():null;
+   if(!r||!document.body.contains(r.commonAncestorContainer)||String(r).length>800||r.getBoundingClientRect().bottom<0||r.getBoundingClientRect().top>innerHeight){r=null;for(const x of (point?[point.x+16]:[innerWidth*.35,innerWidth*.5,innerWidth*.2])){const candidate=document.caretRangeFromPoint?.(x,(point?point.y+16:Math.min(100,innerHeight/4)));if(candidate?.startContainer.nodeType===3&&candidate.startContainer.data.trim()){r=candidate;const node=r.startContainer;r.setEnd(node,Math.min(node.length,r.startOffset+160));if(!r.collapsed)break;r=null;}}}
    if(!r||r.collapsed){
-    const element=document.elementFromPoint(innerWidth*.35,Math.min(100,innerHeight/4));
+    const element=document.elementFromPoint(point?point.x+16:innerWidth*.35,(point?point.y+16:Math.min(100,innerHeight/4)));
     const block=element?.closest('p,li,h1,h2,h3,h4,blockquote,pre');
     if(block){const walker=document.createTreeWalker(block,NodeFilter.SHOW_TEXT);let text;while(text=walker.nextNode())if(text.data.trim()){r=document.createRange();r.setStart(text,0);r.setEnd(text,Math.min(160,text.length));break;}}
    }
    const anchor=globalThis.WordNotesAnchor?.capture(document,r);return{r,anchor};
   }
-  async function setStopper(remove=false){if(!ready)throw Error('Reading progress is still loading.');const version=revision;const {r,anchor}=remove?{}:anchorHere();const stopper=remove?null:{y:Math.max(0,scrollY),offset:anchor?r.getBoundingClientRect().top:0,anchor:anchor||null};const saved=await send('READING_STOPPER',{stopper});if(version===revision){record=saved;range=anchor?r:null;notify();}}
+  async function setStopper(remove=false,point=null){if(!ready)throw Error('Reading progress is still loading.');const version=revision;const {r,anchor}=remove?{}:anchorHere(point);const targetY=point?Math.max(0,scrollY+point.y-80):Math.max(0,scrollY);const stopper=remove?null:{y:targetY,offset:anchor?scrollY+r.getBoundingClientRect().top-targetY:0,x:point?Math.max(0,Math.min(1,point.x/innerWidth)):record?.stopper?.x??null,markerOffset:point?scrollY+point.y-targetY:80,anchor:anchor||null};const saved=await send('READING_STOPPER',{stopper});if(version===revision){record=saved;range=anchor?r:null;notify();}}
   function resume(){
    if(!ready)return;let y=record?.position?.y||0,exact=false;
    if(record?.stopper){const s=record.stopper;y=s.y;try{if(!range?.startContainer?.isConnected)range=s.anchor&&globalThis.WordNotesAnchor?.resolve(document,s.anchor);if(range){y=scrollY+range.getBoundingClientRect().top-s.offset;exact=true;}}catch{range=null;}}
-   window.scrollTo({top:Math.max(0,Math.min(max(),y)),behavior:'instant'});return{stopper:!!record?.stopper,exact};
+   window.scrollTo({top:Math.max(0,Math.min(max(),y)),behavior:'instant'});notify();return{stopper:!!record?.stopper,exact};
   }
   function checkPage(){const next=canonical(location.href);if(next===url)return;clearTimeout(timer);timer=null;url=next;load();}
-  window.addEventListener('scroll',scroll,{passive:true});window.addEventListener('pagehide',save);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')save();});
+  window.addEventListener('resize',notify);window.addEventListener('scroll',scroll,{passive:true});window.addEventListener('pagehide',save);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')save();});
   window.addEventListener('popstate',checkPage);window.navigation?.addEventListener('currententrychange',checkPage);
   chrome.storage.onChanged.addListener((changes,area)=>{if(area!=='local'||!changes[KEY])return;const saved=(changes[KEY].newValue||[]).find(item=>item.url===url)||null;if(JSON.stringify(record?.stopper)!==JSON.stringify(saved?.stopper))range=null;record=saved;if(!saved){revision++;paused=true;clearTimeout(timer);timer=null;lastY=-1;range=null;}notify();});
   load();return{setStopper,resume,save,get:()=>({record,ready}),refresh:load};
