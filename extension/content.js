@@ -1,5 +1,5 @@
 (() => {
-  const BUILD="0.4.27";
+  const BUILD="0.4.28";
   const pronunciationAndTranslationOnly=typeof location!=="undefined"&&location.hostname==="chatgpt.com";
   let contextSelection="", highlightRange=null, selectionLauncher=null;
   const highlighter=globalThis.WordHighlighter?.createPersistent();
@@ -48,7 +48,7 @@ ${globalThis.WordRichResponse?.css||""}
       <details class="result" id="summary-result" hidden open><summary class="status"><span class="dot" aria-hidden="true"></span><span id="summary-status">Summary</span></summary><div class="result-body" tabindex="0" aria-label="Summary"><div class="answer" id="summary-answer" dir="auto"></div></div></details>
       <details class="result" id="translation-result" hidden open><summary class="status"><span class="dot" aria-hidden="true"></span><span id="translation-status">Translation</span></summary><div class="result-body" tabindex="0" aria-label="Translation"><button class="speaker" id="listen-translation" type="button" aria-label="Listen to translation" title="Listen to translation" hidden>🔊</button><div class="answer translation" id="translation-answer" dir="auto"></div><div class="speech-note" id="speech-note" role="status"></div></div></details>
       </div>
-      <div class="footer"><span>Esc to minimize</span><span class="version">v0.4.27</span></div>
+      <div class="footer"><span>Esc to minimize</span><span class="version">v0.4.28</span></div>
     </section><button class="restore-selection" id="restore-selection" type="button" aria-label="Restore selection tools" title="Restore selection tools" aria-controls="selection-card" aria-expanded="false" hidden>‹</button><div class="selection-tooltip" id="selection-tooltip" role="tooltip" hidden></div>`;
   globalThis.WordUIIcons?.decorate(root);
   document.documentElement.appendChild(host);
@@ -99,7 +99,8 @@ ${globalThis.WordRichResponse?.css||""}
   const pending = new Map();
   const answers = new Map();let answerPage=location.href.split("#")[0];
   const el=(id)=>root.getElementById(id);
-  const history=globalThis.WordSelectionHistory?.create({page:()=>location.href.split("#")[0]});
+  let historyRevision=0;
+  const history=globalThis.WordSelectionHistory?.create({page:()=>location.origin,onChange:state=>{historyRevision++;send({type:"SAVE_SELECTION_HISTORY",state}).catch(()=>{});}});
   function updateHistoryControls(){const position=history?.position()||{index:-1,count:0};el("history-previous").disabled=position.index<=0;el("history-next").disabled=position.index<0||position.index>=position.count-1;el("history-position").textContent=`${position.index+1} / ${position.count}`;}
   function moveHistory(direction){
     const entry=history?.move(direction);if(!entry){updateHistoryControls();return;}
@@ -108,8 +109,9 @@ ${globalThis.WordRichResponse?.css||""}
   function displayHistoryEntry(entry){
     hide();if(plainUtterance){plainUtterance=null;speechSynthesis.cancel();}
     paperSelection=entry.paperSelection;paperSourceUrl=entry.sourceUrl;selectedText=entry.text;contextSelection=entry.text;selectedAction=entry.action;selectedProvider=entry.provider;
-    let range=entry.range;
-    try{if(!range?.startContainer?.isConnected||!range.endContainer?.isConnected||String(range).trim()!==entry.text)range=entry.anchor&&globalThis.WordNotesAnchor?.resolve(document,entry.anchor);if(range?.commonAncestorContainer?.ownerDocument!==document)range=null;}catch{range=null;}
+    const samePage=entry.sourceUrl?.split("#")[0]===location.href.split("#")[0];
+    let range=samePage?entry.range:null;
+    try{if(!range?.startContainer?.isConnected||!range.endContainer?.isConnected||String(range).trim()!==entry.text)range=samePage&&entry.anchor&&globalThis.WordNotesAnchor?.resolve(document,entry.anchor);if(range?.commonAncestorContainer?.ownerDocument!==document)range=null;}catch{range=null;}
     const selection=window.getSelection();selection?.removeAllRanges();
     if(range){selection.addRange(range.cloneRange());entry.range=range.cloneRange();const rect=range.getBoundingClientRect();if(rect.top<0||rect.bottom>innerHeight)(range.startContainer.nodeType===1?range.startContainer:range.startContainer.parentElement)?.scrollIntoView?.({block:"center",behavior:"instant"});}
     highlightRange=range||null;el("equation-note").textContent="";el("history-note").textContent=range?"":"The original passage is no longer available here. Saved answers are still shown.";el("history-note").hidden=!!range;
@@ -117,7 +119,7 @@ ${globalThis.WordRichResponse?.css||""}
   }
   function clearSelectionHistory(scope={}){
     try{if(scope.site&&new URL(location.href).origin!==scope.site)return;if(scope.url&&new URL(scope.url).href.split("#")[0]!==location.href.split("#")[0])return;}catch{return;}
-    for(const [requestId,job]of pending){clearTimeout(job.timer);send({type:"CANCEL_EXPLANATION",requestId}).catch(()=>{});}pending.clear();activeRequest=null;answers.clear();history?.clear();
+    for(const [requestId,job]of pending){clearTimeout(job.timer);send({type:"CANCEL_EXPLANATION",requestId}).catch(()=>{});}pending.clear();activeRequest=null;answers.clear();if(scope.kind==="page"&&scope.url)history?.removePage(scope.url);else history?.clear();
     selectedText="";contextSelection="";paperSelection="";paperSourceUrl="";highlightRange=null;spokenTranslation=null;
     if(plainUtterance){plainUtterance=null;speechSynthesis.cancel();}hide();updateHistoryControls();setBusy(false);
     for(const id of ["result","references-result","summary-result","translation-result"])el(id).hidden=true;
@@ -452,6 +454,13 @@ ${globalThis.WordRichResponse?.css||""}
   el("gemini").addEventListener("click",()=>requestAction("explain","gemini"));
   el("translate").addEventListener("click",()=>requestAction("translate"));
   if(!pronunciationAndTranslationOnly&&window.top===window){globalThis.WordReviewPanel?.useDock?.();globalThis.WordFloatingTools?.create({openSelection:action=>{if(!showSelection())return false;if(action)el(action)?.click();return true;},mountReview:(container,onClose)=>globalThis.WordReviewPanel?.mount?.(container,onClose)||false});}
+  const loadRevision=historyRevision;
+  if(history)send({type:"LOAD_SELECTION_HISTORY"}).then(reply=>{
+    if(historyRevision===loadRevision&&history?.restore(reply?.state)){updateHistoryControls();hide();}
+  }).catch(()=>{});
+  function checkHistoryPage(){if(answerPage!==location.href.split("#")[0]){answers.clear();history?.position();hide();answerPage=location.href.split("#")[0];}}
+  window.addEventListener("popstate",checkHistoryPage);
+  window.navigation?.addEventListener("currententrychange",checkHistoryPage);
   globalThis.WordSelectionUI={open:()=>showSelection(),clearHistory:clearSelectionHistory};
   selectionLauncher=globalThis.WordSelectionLauncher?.create({open:()=>showSelection(),isPanelOpen:()=>host.style.display==="block"&&!minimized});
 })();

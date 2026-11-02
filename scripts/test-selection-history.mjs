@@ -10,3 +10,8 @@ const bounded=api.WordSelectionHistory.create({page:()=>page,maxBytes:3000});con
 console.log('PASS: selection history bounds, answer retention, late-response isolation, duplicate selection, branching, byte budget and page isolation.');
 
 const old=bounded.current().id;bounded.clear();const fresh=bounded.remember(make("fresh"));assert.ok(fresh.id>old);bounded.update(old,{action:"explain",text:"Ignored old answer"});assert.equal(bounded.current().results.size,0);
+
+const snapshot=JSON.parse(JSON.stringify(bounded.exportState()));page=snapshot.page;
+const restored=api.WordSelectionHistory.create({page:()=>page});assert.equal(restored.restore(snapshot),true);assert.equal(restored.current().text,bounded.current().text);assert.equal(restored.current().range,null);assert.equal(restored.position().count,bounded.position().count);
+const wrong=api.WordSelectionHistory.create({page:()=>"another-page"});assert.equal(wrong.restore(snapshot),false);
+console.log('PASS: serializable reload restoration, no stale DOM ranges, and URL mismatch rejection.');

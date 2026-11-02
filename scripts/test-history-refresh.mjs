@@ -1,0 +1,35 @@
+import fs from 'node:fs/promises';import vm from 'node:vm';import assert from 'node:assert/strict';import {createRequire} from 'node:module';
+const repo=new URL('../',import.meta.url).pathname;const store={},listeners={};
+const chrome={runtime:{id:'test'},storage:{session:{get:async key=>key===null?structuredClone(store):{[key]:structuredClone(store[key])},set:async obj=>Object.assign(store,structuredClone(obj)),remove:async keys=>{for(const key of [keys].flat())delete store[key];}},onChanged:{addListener:f=>listeners.storage=f}},tabs:{onRemoved:{addListener:f=>listeners.removed=f},onUpdated:{addListener:f=>listeners.updated=f}}};
+const api={URL};vm.runInNewContext(await fs.readFile(repo+'extension/selection-history-session.js','utf8'),api);const service=api.WordSelectionHistorySession.create(chrome);
+const sender={id:'test',tab:{id:10,url:'https://history.test/article'},frameId:0,url:'https://history.test/article'};
+const message=(m,s=sender)=>new Promise(resolve=>service.handle(m,s,resolve));
+const {chromium}=createRequire(import.meta.url)('playwright');const browser=await chromium.launch({channel:'chrome',headless:true});
+try{
+ const page=await browser.newPage();let requests=0,lastJob;
+ await page.route('https://history.test/**',route=>route.fulfill({contentType:'text/html',body:'<p>A <span id="system">system</span> connects components.</p>'}));
+ await page.exposeFunction('extensionMessage',async m=>{if(m.type.endsWith('SELECTION_HISTORY'))return message(m);if(m.type==='EXPLAIN_SELECTION'){requests++;lastJob=m;return{accepted:true};}return{ok:true};});
+ await page.addInitScript(()=>{window.chrome={runtime:{id:'test',sendMessage:m=>window.extensionMessage(m),onMessage:{addListener:f=>window.handler=f}},storage:{local:{get:async d=>({...d,askProvider:'chatgpt'}),set:async()=>{}},onChanged:{addListener:()=>{}}}};const attach=Element.prototype.attachShadow;Element.prototype.attachShadow=function(o){const r=attach.call(this,o);window.root=r;return r;};});
+ const inject=async()=>{for(const name of ['ui-icons.js','notes-anchor.js','highlighter.js','selection-history.js','content.js'])await page.addScriptTag({content:await fs.readFile(repo+'extension/'+name,'utf8')});};
+ await page.goto(sender.url);await inject();
+ await page.evaluate(()=>{const r=document.createRange();r.selectNodeContents(document.getElementById('system'));getSelection().addRange(r);handler({type:'SHOW_SELECTION_MENU'},{id:'test'},()=>{});root.getElementById('ask-llm').click();});
+ await page.waitForFunction(()=>root.getElementById('ask-llm').disabled);
+ await page.waitForFunction(()=>root.getElementById('ask-llm').disabled);
+ await page.evaluate(job=>handler({type:'EXPLANATION_RESULT',requestId:job.requestId,ok:true,text:'Saved system answer'},{id:'test'},()=>{}),lastJob);
+ await page.waitForFunction(()=>root.getElementById('answer').textContent==='Saved system answer');
+ await message({type:'LOAD_SELECTION_HISTORY'});const state=store[Object.keys(store)[0]].state;
+ await page.reload();await inject();await page.waitForFunction(()=>!root.getElementById('restore-selection').hidden);
+ assert.equal(await page.evaluate(()=>root.getElementById('selection-card').hidden),true);
+ await page.evaluate(()=>root.getElementById('restore-selection').click());
+ assert.equal(await page.evaluate(()=>String(getSelection())),'system');assert.equal(await page.evaluate(()=>root.getElementById('answer').textContent),'Saved system answer');assert.equal(requests,1,'Restore must not request AI');
+ await page.goto('https://history.test/next');await inject();await page.waitForFunction(()=>!root.getElementById('restore-selection').hidden);
+ await page.evaluate(()=>root.getElementById('restore-selection').click());assert.equal(await page.evaluate(()=>root.getElementById('answer').textContent),'Saved system answer');assert.equal(await page.evaluate(()=>String(getSelection())), '', 'Do not select matching words on a different page');assert.equal(requests,1);
+ await page.evaluate(()=>WordSelectionUI.clearHistory());await page.reload();await inject();assert.equal(await page.evaluate(()=>root.getElementById('restore-selection').hidden),true);
+ await message({type:'SAVE_SELECTION_HISTORY',state});listeners.updated(10,{url:'https://another.test/other'});await message({type:'LOAD_SELECTION_HISTORY'});assert.equal(Object.keys(store).length,0,'Changed domain discards history');
+ assert.equal((await message({type:'LOAD_SELECTION_HISTORY'},{...sender,tab:{...sender.tab,id:11}})).state,undefined);
+ const mixed=structuredClone(state);mixed.entries.push({...mixed.entries[0],sourceUrl:'https://history.test/next',text:'other passage'});
+ await message({type:'SAVE_SELECTION_HISTORY',state:mixed});listeners.storage({wordSelectionClearSignal:{newValue:{kind:'page',url:'https://history.test/article'}}},'session');
+ const afterClear=await message({type:'LOAD_SELECTION_HISTORY'});assert.equal(afterClear.state.entries.length,1);assert.equal(afterClear.state.entries[0].text,'other passage','Page cleanup preserves other page history');
+ listeners.storage({wordSelectionClearSignal:{newValue:{kind:'site',site:'https://history.test'}}},'session');assert.equal((await message({type:'LOAD_SELECTION_HISTORY'})).state,undefined);
+ console.log('PASS: real Chrome reload retains icon, restores source selection and saved answer without AI, clear survives reload, same-domain page navigation, changed-domain and tab isolation.');
+}finally{await browser.close();}
