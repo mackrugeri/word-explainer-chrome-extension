@@ -13,7 +13,7 @@ const pageReferences=globalThis.WordPageReferences?.create({chrome,start:startJo
 const storageManager=globalThis.WordStorageManager?.create({storage:chrome.storage.local,reviewStore,notesStore,pageSummary,pageReferences,readingStore});
 const pageData=globalThis.WordPageData?.create({chrome,notesStore,reviewStore,pageSummary,pageReferences,readingStore,cancel:async(url,tabId)=>{const job=await readJob();if(job?.sourceTabId!==tabId||job.task==='context-summary')return;try{if(WordPageData.canonical(job.sourcePageUrl||job.sourceUrl)!==url)return;}catch{return;}await finishJob(job.tabId,{ok:false,error:'Page data cleared.'});}});
 // Short acknowledgements; progress and answers arrive as separate messages.
-const BUILD = "0.4.40";
+const BUILD = "0.4.41";
 const JOB_KEY = "activeExplanationJob";
 const TIMEOUT_ALARM = "word-explanation-timeout";
 let starting = false;

@@ -57,10 +57,10 @@ async function testPaperBackground(restart=false,action="explain",translationLan
     storage:{session:{get:async()=>structuredClone(store),set:async value=>Object.assign(store,structuredClone(value)),remove:async key=>{delete store[key]}}},
     alarms:{create:async()=>{},clear:async()=>{},onAlarm:{addListener:f=>alarmHandler=f}},
     tabs:{onRemoved:{addListener:f=>removedHandler=f},create:async options=>{createdUrl=options.url;return{id:77}},remove:async id=>closed.push(id),sendMessage:async(id,msg)=>{
-      if(id===5){notifications.push(msg);return{received:true};}if(msg.type===prefix+'_START')submittedPrompt=msg.prompt;return msg.type===prefix+'_READY'?{ready:true,build:'0.4.40'}:{accepted:true};
+      if(id===5){notifications.push(msg);return{received:true};}if(msg.type===prefix+'_START')submittedPrompt=msg.prompt;return msg.type===prefix+'_READY'?{ready:true,build:'0.4.41'}:{accepted:true};
     }}};
   const boot=()=>vm.runInNewContext(bg,{chrome,console,setTimeout,clearTimeout,Date,URL});boot();
-  let ack;const returned=handler({type:'EXPLAIN_PAPER_SELECTION',text:'  α = β  ',sourceUrl:'https://example.org/paper.pdf',requestId:'r1',build:'0.4.40',action:"paper-explanation",translationLanguage,provider:"gemini"},{id:'test',tab:{id:5}},v=>ack=v);
+  let ack;const returned=handler({type:'EXPLAIN_PAPER_SELECTION',text:'  α = β  ',sourceUrl:'https://example.org/paper.pdf',requestId:'r1',build:'0.4.41',action:"paper-explanation",translationLanguage,provider:"gemini"},{id:'test',tab:{id:5}},v=>ack=v);
   assert.equal(returned,undefined);assert.equal(ack.accepted,true);await flush();assert.equal(store.activeExplanationJob.tabId,77);if(action==='translate'){assert.ok(submittedPrompt.startsWith('Translate'));assert.ok(submittedPrompt.includes('into '+translationLanguage));assert.ok(submittedPrompt.includes('only the translation'));}else assert.ok(submittedPrompt.startsWith('Explain'));
   assert.equal(createdUrl,provider==="gemini"?"https://gemini.google.com/app":"https://chatgpt.com/");
   const payload=JSON.parse(submittedPrompt.slice(submittedPrompt.indexOf('{')));assert.equal(payload.selectedEquationOrText,'  α = β  ');assert.equal(payload.sourceResearchPaperUrl,'https://example.org/paper.pdf');assert.equal(store.activeExplanationJob.task,'paper-explanation');
