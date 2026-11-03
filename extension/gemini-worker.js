@@ -1,6 +1,6 @@
 // UI automation only; never reads account cookies or existing user conversations.
 (() => {
-  const BUILD = "0.4.45";
+  const BUILD = "0.4.46";
   let busy = false;
   let cleanupEligible = false;
   let ownedPrompt = "";
