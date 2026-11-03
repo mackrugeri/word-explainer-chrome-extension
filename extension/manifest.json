@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Word Explainer",
-  "version": "0.4.43",
+  "version": "0.4.44",
   "description": "Pronounce, translate, or ask ChatGPT or Gemini about selected text.",
   "permissions": [
     "storage",

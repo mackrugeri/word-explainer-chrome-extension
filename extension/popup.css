@@ -13,4 +13,4 @@ html.summary-reader{width:var(--summary-width,520px);min-width:var(--summary-wid
 
 #references-source{font-size:12px;color:var(--muted);overflow-wrap:anywhere;text-decoration:none}#references-source:hover{text-decoration:underline}
 
-#reading-dashboard,#contexts{justify-content:center;text-align:center}
+#reading-dashboard,#contexts{justify-content:space-between;text-align:center;background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
