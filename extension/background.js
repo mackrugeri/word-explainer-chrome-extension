@@ -1,7 +1,8 @@
 // Page review storage is isolated from provider automation.
-if (typeof importScripts === "function") importScripts("notes-store.js", "review-store.js", "context-store.js", "context-controller.js", "pdf-selection.js", "paper-explanation.js", "paragraph-summary.js", "storage-manager.js", "rich-response.js", "page-summary.js", "page-references.js", "selection-references.js", "page-data.js", "selection-history-session.js", "reading-progress.js", "followup.js");
+if (typeof importScripts === "function") importScripts("notes-store.js", "review-store.js", "context-store.js", "context-controller.js", "pdf-selection.js", "paper-explanation.js", "paragraph-summary.js", "storage-manager.js", "rich-response.js", "page-summary.js", "page-references.js", "selection-references.js", "page-data.js", "selection-history-session.js", "reading-progress.js", "followup.js", "dashboard-store.js");
 const selectionHistorySession=globalThis.WordSelectionHistorySession?.create(chrome);
 const readingStore=globalThis.WordReadingProgress?.createStore(chrome.storage.local);
+const readingDashboard=globalThis.WordReadingDashboard?.create({chrome});
 const readingService=readingStore&&WordReadingProgress.createService(chrome,readingStore);
 const notesStore = globalThis.WordNotesStore.create(chrome.storage.local);
 const reviewStore = globalThis.WordReviewStore.create(chrome.storage.local);
@@ -12,7 +13,7 @@ const pageReferences=globalThis.WordPageReferences?.create({chrome,start:startJo
 const storageManager=globalThis.WordStorageManager?.create({storage:chrome.storage.local,reviewStore,notesStore,pageSummary,pageReferences,readingStore});
 const pageData=globalThis.WordPageData?.create({chrome,notesStore,reviewStore,pageSummary,pageReferences,readingStore,cancel:async(url,tabId)=>{const job=await readJob();if(job?.sourceTabId!==tabId||job.task==='context-summary')return;try{if(WordPageData.canonical(job.sourcePageUrl||job.sourceUrl)!==url)return;}catch{return;}await finishJob(job.tabId,{ok:false,error:'Page data cleared.'});}});
 // Short acknowledgements; progress and answers arrive as separate messages.
-const BUILD = "0.4.39";
+const BUILD = "0.4.40";
 const JOB_KEY = "activeExplanationJob";
 const TIMEOUT_ALARM = "word-explanation-timeout";
 let starting = false;
@@ -208,6 +209,11 @@ chrome.commands.onCommand.addListener(async (command, tab) => {
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (sender.id !== chrome.runtime.id || message.target === "translation-audio") return;
+  if(readingDashboard?.handle(message,sender,sendResponse))return true;
+  if(message.type==='OPEN_READING_DASHBOARD'){
+    let suffix='';try{if(message.floating&&sender.url){const source=new URL(sender.url);if(['http:','https:'].includes(source.protocol))suffix='?site='+encodeURIComponent(source.origin);}}catch{}
+    chrome.tabs.create({url:chrome.runtime.getURL('dashboard.html')+suffix,active:true}).then(()=>sendResponse({ok:true}),()=>sendResponse({ok:false,error:'Could not open the reading dashboard.'}));return true;
+  }
   if(readingService?.handle(message,sender,sendResponse))return true;
   if(selectionHistorySession?.handle(message,sender,sendResponse))return true;
   if(message.type==="CLEAR_PAGE_DATA")return pageData?.handle(message,sender,sendResponse);

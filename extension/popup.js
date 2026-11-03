@@ -21,4 +21,12 @@ contextsButton.addEventListener("click",async()=>{
   finally{contextsButton.disabled=false;}
 });
 
+const dashboardButton=document.getElementById('reading-dashboard');
+dashboardButton?.addEventListener?.('click',async()=>{
+  dashboardButton.disabled=true;popupStatus.hidden=true;
+  try{const reply=await chrome.runtime.sendMessage({type:'OPEN_READING_DASHBOARD'});if(!reply?.ok)throw Error('Unavailable');}
+  catch{popupStatus.textContent='Could not open the reading dashboard. Reload the extension and retry.';popupStatus.hidden=false;}
+  finally{dashboardButton.disabled=false;}
+});
+
 globalThis.WordUIIcons?.decorate(document);

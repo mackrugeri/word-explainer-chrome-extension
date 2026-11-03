@@ -1,6 +1,7 @@
 // Static, locally bundled outline icons. No icon fonts, requests or observers.
 (() => {
   const paths={
+    dashboard:['M3 3h7v7H3Z','M14 3h7v4h-7Z','M14 11h7v10h-7Z','M3 14h7v7H3Z'],
     sound:['M4 9H1v6h3l5 4V5L4 9Z','M13 8a6 6 0 0 1 0 8','M16 5a10 10 0 0 1 0 14'],
     chat:['M20 11a8 8 0 0 1-8 8H5l-4 3V11a9 9 0 0 1 18-1','M6 10h8','M6 14h5'],
     summary:['M5 4h14v16H5V4Z','M8 8h8','M8 12h8','M8 16h5'],
@@ -16,7 +17,7 @@
     download:['M12 3v12','m7 10 5 5 5-5','M4 16v5h16v-5'],
     plus:['M12 4v16','M4 12h16']
   };
-  const map={'dock-ask':'chat','dock-translate':'translate','dock-listen':'sound','dock-note-action':'note','dock-summary':'summary','dock-references':'book','dock-clear-page':'trash','dock-review':'note','dock-contexts':'link','dock-selection':'chat',toggle:'book','page-summary':'summary','page-summary-refresh':'refresh',speak:'sound',listen:'sound','equation-speak':'math',equation:'math','ask-llm':'chat',ask:'chat',summarize:'summary',translate:'translate','notes-taken':'note','paper-explanation':'book','selection-references':'book','cross-context':'link',contexts:'link',settings:'settings',save:'save','storage-refresh':'refresh',download:'download',clear:'trash',delete:'trash','delete-confirm':'trash','reading-mode':'book','math-mode':'math','save-draft':'save'};
+  const map={'dock-dashboard':'dashboard','reading-dashboard':'dashboard','dock-ask':'chat','dock-translate':'translate','dock-listen':'sound','dock-note-action':'note','dock-summary':'summary','dock-references':'book','dock-clear-page':'trash','dock-review':'note','dock-contexts':'link','dock-selection':'chat',toggle:'book','page-summary':'summary','page-summary-refresh':'refresh',speak:'sound',listen:'sound','equation-speak':'math',equation:'math','ask-llm':'chat',ask:'chat',summarize:'summary',translate:'translate','notes-taken':'note','paper-explanation':'book','selection-references':'book','cross-context':'link',contexts:'link',settings:'settings',save:'save','storage-refresh':'refresh',download:'download',clear:'trash',delete:'trash','delete-confirm':'trash','reading-mode':'book','math-mode':'math','save-draft':'save'};
   const css='.we-button-icon{display:inline-block;width:15px;height:15px;flex:none;vertical-align:-3px;margin-inline-end:6px;pointer-events:none}';
   function decorate(scope){
     const doc=scope.ownerDocument||scope;if(!scope.querySelectorAll)return;
