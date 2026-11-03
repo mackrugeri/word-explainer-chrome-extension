@@ -1,5 +1,5 @@
 (() => {
-  const BUILD="0.4.37";
+  const BUILD="0.4.39";
   const pronunciationAndTranslationOnly=typeof location!=="undefined"&&location.hostname==="chatgpt.com";
   let contextSelection="", highlightRange=null, selectionLauncher=null;
   const highlighter=globalThis.WordHighlighter?.createPersistent();
@@ -48,7 +48,7 @@ ${globalThis.WordRichResponse?.css||""}
       <details class="result" id="summary-result" hidden open><summary class="status"><span class="dot" aria-hidden="true"></span><span id="summary-status">Summary</span></summary><div class="result-body" tabindex="0" aria-label="Summary"><div class="answer" id="summary-answer" dir="auto"></div></div></details>
       <details class="result" id="translation-result" hidden open><summary class="status"><span class="dot" aria-hidden="true"></span><span id="translation-status">Translation</span></summary><div class="result-body" tabindex="0" aria-label="Translation"><button class="speaker" id="listen-translation" type="button" aria-label="Listen to translation" title="Listen to translation" hidden>🔊</button><div class="answer translation" id="translation-answer" dir="auto"></div><div class="speech-note" id="speech-note" role="status"></div></div></details>
       </div>
-      <div class="footer"><span>Esc to minimize</span><span class="version">v0.4.37</span></div>
+      <div class="footer"><span>Esc to minimize</span><span class="version">v0.4.39</span></div>
     </section><button class="restore-selection" id="restore-selection" type="button" aria-label="Restore selection tools" title="Restore selection tools" aria-controls="selection-card" aria-expanded="false" hidden>‹</button><div class="selection-tooltip" id="selection-tooltip" role="tooltip" hidden></div>`;
   globalThis.WordUIIcons?.decorate(root);
   document.documentElement.appendChild(host);
@@ -459,7 +459,7 @@ ${globalThis.WordRichResponse?.css||""}
   el("explain").addEventListener("click",()=>requestAction("explain"));
   el("gemini").addEventListener("click",()=>requestAction("explain","gemini"));
   el("translate").addEventListener("click",()=>requestAction("translate"));
-  if(!pronunciationAndTranslationOnly&&window.top===window){globalThis.WordReviewPanel?.useDock?.();globalThis.WordFloatingTools?.create({openSelection:action=>{if(!showSelection())return false;if(action)el(action)?.click();return true;},mountReview:(container,onClose)=>globalThis.WordReviewPanel?.mount?.(container,onClose)||false});}
+  if(window.top===window){globalThis.WordReviewPanel?.useDock?.();globalThis.WordFloatingTools?.create({selectionAI:!pronunciationAndTranslationOnly,openSelection:action=>{if(!showSelection())return false;if(action)el(action)?.click();return true;},mountReview:(container,onClose)=>globalThis.WordReviewPanel?.mount?.(container,onClose)||false});}
   if(!pronunciationAndTranslationOnly)followupUI=globalThis.WordFollowup?.create({mount:el('answer').parentElement,request:({selection,...payload})=>send({type:'EXPLAIN_SELECTION',action:'explain',text:selection,build:BUILD,...payload})});
   const loadRevision=historyRevision;
   if(history)send({type:"LOAD_SELECTION_HISTORY"}).then(reply=>{
