@@ -6,12 +6,14 @@ const browser=await chromium.launch({channel:'chrome',headless:true});try{
  for(const name of ['rich-response.js','page-references.js','ui-icons.js','floating-tools.js'])await page.addScriptTag({content:files[name]});
  await page.evaluate(()=>{window.controller=WordFloatingTools.create({openSelection:()=>{selected=String(getSelection());return!!selected;},openReview:()=>true});});
  const tucked=await page.evaluate(()=>{const button=dock.getElementById('dock-launcher'),r=button.getBoundingClientRect();return{top:r.top,bottom:r.bottom,opacity:Number(getComputedStyle(button).opacity),x:r.left+r.width/2};});assert.ok(tucked.top<0&&tucked.bottom>5&&tucked.opacity<.6);
+ const logoOffset=()=>page.evaluate(()=>{const button=dock.getElementById('dock-launcher'),outer=button.getBoundingClientRect(),logo=button.querySelector('svg').getBoundingClientRect();return Math.max(Math.abs(logo.left+logo.width/2-outer.left-outer.width/2),Math.abs(logo.top+logo.height/2-outer.top-outer.height/2));});
+ assert.ok(await logoOffset()<0.5,'Logo is centered in the tucked button');
  await page.mouse.move(tucked.x,5);await page.waitForFunction(()=>Number(getComputedStyle(dock.getElementById('dock-launcher')).opacity)>.99);assert.equal(await page.evaluate(()=>dock.getElementById('dock-panel').hidden),true,'Hover only reveals launcher');
  await page.mouse.move(20,120);await page.waitForFunction(()=>Number(getComputedStyle(dock.getElementById('dock-launcher')).opacity)<.6);
  await page.locator('#outside').focus();await page.keyboard.press('Tab');await page.waitForFunction(()=>dock.activeElement?.id==='dock-launcher'&&dock.getElementById('dock-launcher').getBoundingClientRect().top>=0);assert.equal(await page.evaluate(()=>requests.length),0);
  await page.locator('#outside').focus();
  assert.equal(await page.evaluate(()=>dock.getElementById('dock-panel').hidden),true);assert.equal(await page.evaluate(()=>requests.length),0);
- await page.evaluate(()=>dock.getElementById('dock-launcher').click());await page.waitForFunction(()=>!dock.getElementById('dock-panel').hidden);assert.equal(await page.evaluate(()=>requests.length),0,'Opening does not send requests');
+ await page.evaluate(()=>dock.getElementById('dock-launcher').click());await page.waitForFunction(()=>!dock.getElementById('dock-panel').hidden);assert.equal(await page.evaluate(()=>requests.length),0,'Opening does not send requests');assert.ok(await logoOffset()<0.5,'Logo is centered in the expanded button');
  await page.evaluate(async()=>await Promise.all(dock.getElementById('dock-panel').getAnimations().map(animation=>animation.finished)));
  await page.screenshot({path:'/tmp/word-explainer-floating-tools.png'});
  await page.locator('#outside').click();await page.waitForFunction(()=>dock.getElementById('dock-panel').hidden);
