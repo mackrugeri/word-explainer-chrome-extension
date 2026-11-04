@@ -31,7 +31,7 @@
       // One selection fallback also covers extensionless PDF URLs and embedded PDFs.
       chrome.contextMenus.remove(MENU,()=>{
         void chrome.runtime.lastError;
-        chrome.contextMenus.create({id:MENU,title:"Word Explainer — PDF actions",contexts:["selection"]},()=>{void chrome.runtime.lastError;});
+        chrome.contextMenus.create({id:MENU,title:"Reel Trail — PDF actions",contexts:["selection"]},()=>{void chrome.runtime.lastError;});
       });
     }
     chrome.runtime.onInstalled.addListener(install);

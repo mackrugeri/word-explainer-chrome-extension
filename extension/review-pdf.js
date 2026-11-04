@@ -7,7 +7,7 @@
     const parts=[],offsets=[0];let length=0;
     const add=value=>{const bytes=typeof value==="string"?encoder.encode(value):value;parts.push(bytes);length+=bytes.length;};
     const object=(id,body)=>{offsets[id]=length;add(`${id} 0 obj\n`);body();add("\nendobj\n");};
-    add("%PDF-1.4\n% Word Explainer review\n");
+    add("%PDF-1.4\n% Reel Trail review\n");
     object(1,()=>add("<< /Type /Catalog /Pages 2 0 R >>"));
     object(2,()=>add(`<< /Type /Pages /Count ${images.length} /Kids [${images.map((_,i)=>`${3+i*3} 0 R`).join(" ")}] >>`));
     images.forEach((image,i)=>{
@@ -69,7 +69,7 @@
     for(let i=0;i<pages.length;i++){
       ctx.setTransform(2,0,0,2,0,0);ctx.fillStyle="#ffffff";ctx.fillRect(0,0,W,H);
       ctx.direction="ltr";ctx.textAlign="left";ctx.textBaseline="top";
-      ctx.fillStyle="#16654f";ctx.font=font(10,true);ctx.fillText("WORD EXPLAINER / REVIEW",M,28);
+      ctx.fillStyle="#16654f";ctx.font=font(10,true);ctx.fillText("REEL TRAIL / REVIEW",M,28);
       ctx.fillStyle="#19332e";ctx.font=font(21,true);ctx.fillText("Your saved summaries and notes",M,45);
       ctx.fillStyle="#61756f";ctx.font=font(9);ctx.fillText(`${new URL(report.site).hostname} - ${report.items.length} concepts`,M,74);
       for(const line of pages[i]){

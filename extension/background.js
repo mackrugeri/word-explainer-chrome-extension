@@ -106,7 +106,7 @@ async function startJob(text, sourceTabId, requestId, provider = "chatgpt", opti
       try {
         const ready = await chrome.tabs.sendMessage(ownedTabId, { type: `${prefix}_READY` }, { frameId: 0 });
         if (ready?.ready) {
-          if (ready.build !== BUILD) throw new Error(`${name} has an older extension script. Close that tab, reload Word Explainer, and refresh the source page.`);
+          if (ready.build !== BUILD) throw new Error(`${name} has an older extension script. Close that tab, reload Reel Trail, and refresh the source page.`);
           // CHATGPT_START acknowledges immediately, before waiting for any answer.
           const ack = await chrome.tabs.sendMessage(ownedTabId, { type: `${prefix}_START`, prompt, task: job.task }, { frameId: 0 });
           if (ack?.accepted) return;
@@ -171,7 +171,7 @@ async function shortcutFeedback(tabId, message = "") {
   if (!chrome.action) return;
   try {
     await chrome.action.setBadgeText({ tabId, text: message ? "!" : "" });
-    await chrome.action.setTitle({ tabId, title: message || "Word Explainer" });
+    await chrome.action.setTitle({ tabId, title: message || "Reel Trail" });
   } catch { /* A closed or restricted tab may not expose an action context. */ }
 }
 chrome.commands.onCommand.addListener(async (command, tab) => {
@@ -188,7 +188,7 @@ chrome.commands.onCommand.addListener(async (command, tab) => {
     // Unlike general notifications, a shortcut must not swallow delivery errors.
     const reply = await chrome.tabs.sendMessage(tab.id, { type: "SHOW_SELECTION_MENU", build: BUILD }, {frameId:0});
     if (!reply?.ok || reply.build !== BUILD) {
-      await shortcutFeedback(tab.id, reply?.error || "Refresh this web page after updating Word Explainer.");
+      await shortcutFeedback(tab.id, reply?.error || "Refresh this web page after updating Reel Trail.");
     } else if (!reply.shown && reply.courseFramesAllowed) {
       let selected;
       try{selected=await chrome.tabs.sendMessage(tab.id,{type:"COLLECT_COURSE_SELECTION"});}catch{}
@@ -203,7 +203,7 @@ chrome.commands.onCommand.addListener(async (command, tab) => {
       await shortcutFeedback(tab.id, "Select text in the web page and press the shortcut again. Protected pages and embedded frames may be unsupported.");
     } else await shortcutFeedback(tab.id);
   } catch {
-    if (tab?.id) await shortcutFeedback(tab.id, "Word Explainer could not reach this page. Refresh it and check extension site access; Chrome-protected pages are unsupported.");
+    if (tab?.id) await shortcutFeedback(tab.id, "Reel Trail could not reach this page. Refresh it and check extension site access; Chrome-protected pages are unsupported.");
   }
 });
 

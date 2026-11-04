@@ -6,7 +6,7 @@ settingsButton.addEventListener("click", async () => {
   try {
     await chrome.runtime.openOptionsPage();
   } catch {
-    popupStatus.textContent = "Could not open settings. Reload Word Explainer from Chrome's Extensions page and retry.";
+    popupStatus.textContent = "Could not open settings. Reload Reel Trail from Chrome's Extensions page and retry.";
     popupStatus.hidden = false;
   } finally {
     settingsButton.disabled = false;

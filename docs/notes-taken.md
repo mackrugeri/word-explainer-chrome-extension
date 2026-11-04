@@ -1,6 +1,6 @@
 # Notes Taken
 
-Select normal webpage text, open the Word Explainer popup, and click **Notes Taken**. Write a personal note and save. The editor counts whitespace-separated words in English or Urdu and accepts up to 100 words (12,000 characters). A floating pencil button beside the passage opens the note for editing or deletion. No page text is wrapped or rewritten.
+Select normal webpage text, open the Reel Trail popup, and click **Notes Taken**. Write a personal note and save. The editor counts whitespace-separated words in English or Urdu and accepts up to 100 words (12,000 characters). A floating pencil button beside the passage opens the note for editing or deletion. No page text is wrapped or rewritten.
 
 Notes persist in chrome.storage.local, separately from AI recaps, with at most 400 notes across all sites. Saving beyond that limit evicts the oldest note. Notes stay on this device and are never sent to AI services. Full personal notes appear under the selected passage in the same site's Review and exported PDF. **Clear AI recap** preserves personal notes; delete a personal note in its editor.
 

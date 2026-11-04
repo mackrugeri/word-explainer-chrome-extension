@@ -1,4 +1,4 @@
-# Word Explainer
+# Reel Trail
 
 Chrome extension skeleton with a Python backend. Select a word or phrase on a web page to show **Pronounce** and **Explain in ChatGPT** actions. The same actions are available in Chrome's right-click menu.
 

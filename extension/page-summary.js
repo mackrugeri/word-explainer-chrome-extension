@@ -34,10 +34,10 @@
     function handle(message,sender,reply){
       if(!['PAGE_SUMMARY_GET','PAGE_SUMMARY_START'].includes(message.type))return false;
       let sourceTab=null;
-      if(sender.id!==chrome.runtime.id){reply({ok:false,error:'Open Word Explainer to use this tool.'});return true;}
+      if(sender.id!==chrome.runtime.id){reply({ok:false,error:'Open Reel Trail to use this tool.'});return true;}
       if(sender.url!==chrome.runtime.getURL('popup.html')){
         try{if(message.floating!==true||sender.frameId!==0||!Number.isInteger(sender.tab?.id))throw Error();canonical(sender.url);if(message.url&&!same(message.url,sender.url))throw Error();sourceTab={...sender.tab,url:sender.url};}
-        catch{reply({ok:false,error:'Open Word Explainer on the source page to use this tool.'});return true;}
+        catch{reply({ok:false,error:'Open Reel Trail on the source page to use this tool.'});return true;}
       }
       (message.type==='PAGE_SUMMARY_START'?begin(message.refresh===true,sourceTab):get(message.url||(sourceTab?.url))).then(record=>reply({ok:true,record})).catch(error=>reply({ok:false,error:error.message}));return true;
     }

@@ -1,10 +1,10 @@
-# Word Explainer architecture
+# Reel Trail architecture
 
 This document describes the source currently in `extension/`, version **0.1.5**. It documents implementation and known limitations; it does not certify that every flow has passed an end-to-end browser test.
 
 ## Runtime overview
 
-Word Explainer is a Chrome Manifest V3 extension requiring Chrome 116 or later. Its runtime is JavaScript, HTML and CSS. No Python server, local HTTP service, AI API key or separate application backend is required. The former `backend/` directory is absent from the current working tree.
+Reel Trail is a Chrome Manifest V3 extension requiring Chrome 116 or later. Its runtime is JavaScript, HTML and CSS. No Python server, local HTTP service, AI API key or separate application backend is required. The former `backend/` directory is absent from the current working tree.
 
 The user selects text on an ordinary web page and explicitly presses a keyboard shortcut. A custom panel appears near the selection with **Listen**, **Ask to ChatGPT** and **Translate** actions. Selecting text alone does not open the panel or send a request.
 

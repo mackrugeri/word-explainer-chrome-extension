@@ -3,7 +3,7 @@
   function create({open,isPanelOpen}){
     const host=document.createElement('div');host.dataset.wordSelectionLauncher='';host.style.cssText='position:fixed;display:none;z-index:2147483646';
     const untheme=globalThis.WordTheme?.register(host),root=host.attachShadow({mode:'closed'});
-    root.innerHTML=`<style>:host{all:initial}button{display:grid;place-items:center;width:30px;height:30px;padding:0;border:1px solid #fff6;border-radius:8px;background:#245d47;color:#fff;box-shadow:0 3px 10px #15271b26;font:650 16px/1 Georgia,serif;cursor:pointer}button:hover{background:#194c38}button:focus-visible{outline:3px solid #6ba788;outline-offset:3px}:host([data-we-theme="dark"]) button{background:#b3d8bf;color:#182a1e;border-color:#38473b}</style><button type="button" aria-label="Open Word Explainer" title="Open Word Explainer">W</button>`;
+    root.innerHTML=`<style>:host{all:initial}button{display:grid;place-items:center;width:30px;height:30px;padding:0;border:1px solid #fff6;border-radius:8px;background:#245d47;color:#fff;box-shadow:0 3px 10px #15271b26;font:650 16px/1 Georgia,serif;cursor:pointer}button:hover{background:#194c38}button:focus-visible{outline:3px solid #6ba788;outline-offset:3px}:host([data-we-theme="dark"]) button{background:#b3d8bf;color:#182a1e;border-color:#38473b}</style><button type="button" aria-label="Open Reel Trail" title="Open Reel Trail">W</button>`;
     document.documentElement.appendChild(host);
     const button=root.querySelector('button');let mode='selection',timer=null,snapshot=null,disposed=false;
     const hide=()=>{host.style.display='none';snapshot=null;clearTimeout(timer);timer=null;};

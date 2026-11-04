@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Word Explainer",
+  "name": "Reel Trail",
   "version": "0.4.52",
   "description": "Pronounce, translate, or ask ChatGPT or Gemini about selected text.",
   "permissions": [
